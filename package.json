@@ -1,0 +1,19 @@
+{
+  "name": "skunk",
+  "version": "0.1.0",
+  "description": "Discord game bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "uweng",
+  "license": "ISC",
+  "dependencies": {
+    "async-redis": "2.0",
+    "@discordjs/builders": "0.5",
+    "@discordjs/rest": "^0.1.0-canary.0",
+    "discord-api-types": "0.22",
+    "discord.js": "13.1",
+    "dotenv": "10.0"
+  }
+}
