@@ -41,6 +41,10 @@ client.on('interactionCreate', async interaction => {
   try {
     await command.execute(interaction);
   } catch (error) {
+    if (error.code === 10062) {
+      console.error('Another instance of the bot is already running?');
+      process.exit(1);
+    }
     console.error(error);
     const content = 'There was an error while executing this command!';
     await interaction.reply({ content, ephemeral: true });
