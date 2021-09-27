@@ -54,8 +54,10 @@ export async function execute(interaction: CommandInteraction) {
         outcome += ` ${itemName} crit fail -1.`;
       } else if (skillCheck + strength >= difficulty) {
         exponent += 1;
-        outcome += ` ${itemName} passed +1 (${skillCheck} + STR ${strength}).`;
+        outcome += ` ${itemName} +1.`;
         anySuccess = true;
+      } else {
+        outcome += ` ${itemName} 0.`;
       }
     }
     // did we pass any difficulty checks?
@@ -67,7 +69,7 @@ export async function execute(interaction: CommandInteraction) {
     } else {
       outcome += ` Multiplier failed.`;
     }
-    outcome += ` Total ${totalAward.toLocaleString()}.`;
+    outcome += ` Total **${totalAward.toLocaleString()}**.`;
   }
 
   const oldScore = BigInt(await redis.hget(`${arena}:scores`, playerId));
