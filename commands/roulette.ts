@@ -17,7 +17,7 @@ export async function execute(interaction: CommandInteraction) {
   const didSet = await redis.set(cooldownKey, '1', 'NX', 'EX', '3');
   if (didSet !== 'OK') {
     const ttl = await redis.ttl(cooldownKey);
-    await interaction.reply({ content: `Roulette on cooldown for ${ttl}sec.`, ephemeral: true });
+    await interaction.reply({ content: `The revolver is hot! ${ttl}sec left.`, ephemeral: true });
     return;
   }
 
