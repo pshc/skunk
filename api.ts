@@ -8,6 +8,7 @@ export interface Command {
 
 export type Arena = string;
 export type PlayerId = string;
+export type ItemId = string;
 
 export function lookupArena(interaction: CommandInteraction): Arena {
   // TODO: generate a new arena per discord server

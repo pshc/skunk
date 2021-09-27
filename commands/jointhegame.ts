@@ -16,7 +16,7 @@ export async function execute(interaction: CommandInteraction) {
   const { member, options, user } = interaction;
 
   let playerName = options.getString('name') || (member as any).nickname || user.username;
-  playerName = playerName.replace(/[^\w ,'-]/g, '').trim().slice(0, 30);
+  playerName = sanifyName(playerName);
   if (!playerName) {
     await interaction.reply({ content: "Please provide a valid name.", ephemeral: true });
     return;
@@ -54,4 +54,8 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.editReply("Error joining!");
     return;
   }
+}
+
+export function sanifyName(name: string): string {
+  return name.replace(/[^\w ,'-]/g, '').trim().slice(0, 30);
 }
