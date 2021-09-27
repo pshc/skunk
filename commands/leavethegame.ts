@@ -32,6 +32,7 @@ export async function execute(interaction: CommandInteraction) {
     const tx = await redis.multi();
     tx.hdel(`${arena}:discord_users`, user.id, playerId);
     tx.hdel(`${arena}:names`, playerId);
+    tx.hdel(`${arena}:name_lookup`, playerName.toLowerCase());
     tx.hdel(`${arena}:scores`, playerId);
     await tx.exec();
     await interaction.editReply(`**${playerName}** has quit the game!`);

@@ -23,9 +23,16 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   // is the player in yet?
-  const existingId: string = await redis.hget(`${arena}:discord_users`, user.id);
+  const existingId: string | null = await redis.hget(`${arena}:discord_users`, user.id);
   if (Number(existingId) > 0) {
     await interaction.reply({ content: "You're already in!", ephemeral: true });
+    return;
+  }
+
+  // is the name taken?
+  const existingOwner: string | null = await redis.hget(`${arena}:name_lookup`, playerName.toLowerCase());
+  if (Number(existingOwner) > 0) {
+    await interaction.reply({ content: "Name already taken; please select another.", ephemeral: true });
     return;
   }
 
@@ -35,9 +42,11 @@ export async function execute(interaction: CommandInteraction) {
     console.log(`"${playerName}" (${user.id}) is joining the game.`);
     const playerId = await redis.incr(`${arena}:player_count`);
     const tx = redis.multi();
-    tx.hset(`${arena}:discord_users`, user.id, playerId);
-    tx.hset(`${arena}:names`, playerId, playerName);
-    tx.hset(`${arena}:scores`, playerId, INITIAL_SCORE);
+    // TODO we should really use WATCH to fail properly on conflict
+    tx.hsetnx(`${arena}:discord_users`, user.id, playerId);
+    tx.hsetnx(`${arena}:names`, playerId, playerName);
+    tx.hsetnx(`${arena}:name_lookup`, playerName.toLowerCase(), playerId);
+    tx.hsetnx(`${arena}:scores`, playerId, INITIAL_SCORE);
     await tx.exec();
     await interaction.editReply(`Welcome to the game, **${playerName}**!`);
   } catch (e) {
