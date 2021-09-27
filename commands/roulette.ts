@@ -2,6 +2,7 @@ import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena, lookupPlayerId } from '../api';
+import { reload } from './reload';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('roulette')
@@ -29,13 +30,10 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   const revolver = `${arena}:revolver`;
-  const reload = async () => {
-    await redis.set(revolver, randomInt(6));
-  };
 
   // make sure there is a bullet in the chamber
   if (!await redis.exists(revolver)) {
-    await reload();
+    await reload(revolver);
     await interaction.reply(`You load and spin the revolver.`);
     return;
   }
@@ -44,17 +42,18 @@ export async function execute(interaction: CommandInteraction) {
   const blanksLeft = await redis.decr(revolver);
   if (Number(blanksLeft) < 0) {
     // RIP
-    await reload();
+    await reload(revolver);
     await redis.hset(`${arena}:scores`, playerId, '100');
     await interaction.reply(SCHUT[randomInt(SCHUT.length)]);
     // put 'em on death cooldown
     await redis.set(cooldownKey, '1', 'EX', '20');
   } else {
-    // double your money
+    // multiply your money
+    const multiplier = await redis.incr(revolver + '_multiplier');
     const oldScore = BigInt(await redis.hget(`${arena}:scores`, playerId));
-    const newScore = oldScore * BigInt(2);
+    const newScore = oldScore * BigInt(multiplier);
     await redis.hset(`${arena}:scores`, playerId, newScore.toString());
     const face = MISS[randomInt(MISS.length)];
-    await interaction.reply(`${face}🔫 - score is ${newScore}.`);
+    await interaction.reply(`${face}🔫 score ${multiplier}X to ${newScore}`);
   }
 }

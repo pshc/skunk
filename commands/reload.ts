@@ -27,7 +27,12 @@ export async function execute(interaction: CommandInteraction) {
   // prevent this player from immediately using the gun
   await redis.set(`${arena}:roulette_cooldown:${playerId}`, '1', 'EX', '30');
 
-  const revolver = `${arena}:revolver`;
-  await redis.set(revolver, randomInt(6));
+  await reload(`${arena}:revolver`);
   await interaction.reply(`${playerName} loads and spins the revolver.`);
+}
+
+export async function reload(revolver: string) {
+  const { redis } = global as any;
+  await redis.set(revolver, randomInt(6));
+  await redis.set(revolver + '_multiplier', '1');
 }
