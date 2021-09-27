@@ -7,6 +7,8 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('roulette')
     .setDescription('Either double your points or lose them all!');
 
+const SCHUT = ["**BANG!**", "**POW!**", "💥", "💣", "😵"];
+
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
   const arena = lookupArena(interaction);
@@ -39,7 +41,7 @@ export async function execute(interaction: CommandInteraction) {
     // RIP
     await reload();
     await redis.hset(`${arena}:scores`, playerId, '100');
-    await interaction.reply(`**BANG!**`);
+    await interaction.reply(SCHUT[randomInt(SCHUT.length)]);
     // put 'em on death cooldown
     await redis.set(cooldownKey, '1', 'EX', '30');
   } else {
