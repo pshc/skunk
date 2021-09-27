@@ -17,3 +17,12 @@ export function lookupArena(interaction: CommandInteraction): Arena {
   }
   return 'arena:1';
 }
+
+export async function lookupPlayerId(arena: Arena, interaction: CommandInteraction): Promise<PlayerId> {
+  const { redis } = global as any;
+  const playerId = await redis.hget(`${arena}:discord_users`, interaction.user.id);
+  if (!playerId) {
+    throw new Error('Not playing');
+  }
+  return playerId;
+}
