@@ -27,9 +27,9 @@ export async function execute(interaction: CommandInteraction) {
   // roll and add 'em
   const a = randomInt(6) + 1;
   const b = randomInt(6) + 1;
-  const oldScore = BigInt(await redis.get(`${arena}:scores`, playerId));
+  const oldScore = BigInt(await redis.hget(`${arena}:scores`, playerId));
   const newScore = oldScore + BigInt(a + b);
-  await redis.set(`${arena}:scores`, playerId, newScore.toString());
+  await redis.hset(`${arena}:scores`, playerId, newScore.toString());
   await updateHighScore(arena, playerId, newScore);
   await interaction.reply(`Rolled ${a} + ${b}. Your new score is ${newScore}.`);
 }
