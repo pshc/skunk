@@ -6,10 +6,12 @@ const { Routes } = require('discord-api-types/v9');
 
 const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_BOT_TOKEN);
 
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
-const commands = commandFiles.map(file => require(`./commands/${file}`).data.toJSON());
-
 (async () => {
+  // load *.js files in `dist/commands`
+  const commandFiles = fs.readdirSync('./dist/commands').filter(file => file.endsWith('.js'));
+  const commands = commandFiles.map(file => require(`./dist/commands/${file}`).data.toJSON());
+
+  // register them with discord
   try {
     console.log('Started refreshing application (/) commands.');
 
@@ -19,7 +21,7 @@ const commands = commandFiles.map(file => require(`./commands/${file}`).data.toJ
       { body: commands },
     );
 
-    console.log('Successfully reloaded application (/) commands.');
+    console.log(`Successfully reloaded ${commands.length} application (/) commands.`);
   } catch (error) {
     console.error(error);
   }

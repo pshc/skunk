@@ -1,17 +1,22 @@
-const fs = require('fs');
-const { Client, Collection, Intents } = require('discord.js');
+import { readdirSync } from 'fs';
+import { Client, Collection, CommandInteraction, Intents} from 'discord.js';
+import type { AsyncRedis } from 'async-redis';
+import type { Command } from './api';
 
 // provide a global persistent redis store in `global.redis`
-global.redis = require('async-redis').createClient();
+const redis: AsyncRedis = require('async-redis').createClient();
+(global as any).redis = redis;
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 
-client.commands = new Collection();
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+// we will populate this from `dist/commands/*.js`
+const commands: Collection<string, Command> = new Collection();
+(client as any).commands = commands;
+const commandFiles = readdirSync('./dist/commands').filter((file: string) => file.endsWith('.js'));
 
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
-  client.commands.set(command.data.name, command);
+  commands.set(command.data.name, command);
 }
 
 client.on('ready', () => {
@@ -27,12 +32,12 @@ client.on('invalidRequestWarning', ({count, remainingTime}) => {
   console.warn(`Invalid requests: ${count}, remaining time ${remainingTime}`);
 });
 
-client.on('interactionCreate', async interaction => {
+client.on('interactionCreate', async (interaction: CommandInteraction) => {
   if (!interaction.isCommand()) {
     return;
   }
   const { commandName } = interaction;
-  const command = client.commands.get(commandName);
+  const command: Command = commands.get(commandName);
   if (!command) {
     console.warn(`unregistered command ${commandName}`);
     return;

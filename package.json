@@ -4,7 +4,10 @@
   "description": "Discord game bot",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsc && node deploy-commands && node dist/index.js",
+    "clean": "rm -rf -- dist"
   },
   "author": "uweng",
   "license": "ISC",
@@ -15,5 +18,12 @@
     "discord-api-types": "0.22",
     "discord.js": "13.1",
     "dotenv": "10.0"
+  },
+  "devDependencies": {
+    "@types/async-redis": "1",
+    "@typescript-eslint/eslint-plugin": "4",
+    "@typescript-eslint/parser": "4",
+    "eslint": "7",
+    "typescript": "4"
   }
 }
