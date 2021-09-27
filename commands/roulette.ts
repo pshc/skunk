@@ -3,6 +3,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena, lookupPlayerId } from '../api';
 import { reload } from './reload';
+import { updateHighScore } from './score';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('roulette')
@@ -57,6 +58,7 @@ export async function execute(interaction: CommandInteraction) {
     const newScore = oldScore * BigInt(multiplier);
     await redis.hset(`${arena}:scores`, playerId, newScore.toString());
     const face = MISS[randomInt(MISS.length)];
+    await updateHighScore(arena, playerId, newScore);
     await interaction.reply(`${face}🔫 score ${multiplier}x to ${newScore}`);
   }
 }

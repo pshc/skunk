@@ -2,6 +2,7 @@ import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena } from '../api';
+import { updateHighScore } from './score';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('cookie')
@@ -26,6 +27,9 @@ export async function execute(interaction: CommandInteraction) {
   // roll and add 'em
   const a = randomInt(6) + 1;
   const b = randomInt(6) + 1;
-  const score = await redis.hincrby(`${arena}:scores`, playerId, a + b);
-  await interaction.reply(`Rolled ${a} + ${b}. Your new score is ${score}.`);
+  const oldScore = BigInt(await redis.get(`${arena}:scores`, playerId));
+  const newScore = oldScore + BigInt(a + b);
+  await redis.set(`${arena}:scores`, playerId, newScore.toString());
+  await updateHighScore(arena, playerId, newScore);
+  await interaction.reply(`Rolled ${a} + ${b}. Your new score is ${newScore}.`);
 }
