@@ -34,6 +34,12 @@ export async function execute(interaction: CommandInteraction) {
     tx.hdel(`${arena}:names`, playerId);
     tx.hdel(`${arena}:name_lookup`, playerName.toLowerCase());
     tx.hdel(`${arena}:scores`, playerId);
+    // abandon all their items
+    const inventory = `${arena}:inventory:${playerId}`;
+    const shelter = `${arena}:abandoned_items`;
+    tx.sunionstore(shelter, shelter, inventory);
+    tx.del(inventory);
+
     await tx.exec();
     await interaction.editReply(`**${playerName}** has quit the game!`);
   } catch (e) {
