@@ -59,6 +59,6 @@ export async function execute(interaction: CommandInteraction) {
     await redis.hset(`${arena}:scores`, playerId, newScore.toString());
     const face = MISS[randomInt(MISS.length)];
     await updateHighScore(arena, playerId, newScore);
-    await interaction.reply(`${face}🔫 score ${multiplier}x to ${newScore}`);
+    await interaction.reply(`${face}🔫 score ${multiplier}x to ${newScore.toLocaleString()}`);
   }
 }

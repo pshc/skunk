@@ -31,5 +31,5 @@ export async function execute(interaction: CommandInteraction) {
   const newScore = oldScore + BigInt(a + b);
   await redis.hset(`${arena}:scores`, playerId, newScore.toString());
   await updateHighScore(arena, playerId, newScore);
-  await interaction.reply(`Rolled ${a} + ${b}. Your new score is ${newScore}.`);
+  await interaction.reply(`Rolled ${a} + ${b}. Your new score is ${newScore.toLocaleString()}.`);
 }

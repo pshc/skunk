@@ -29,7 +29,7 @@ export async function execute(interaction: CommandInteraction) {
   });
 
   const names = await redis.hgetall(`${arena}:names`);
-  const scoresWithNames = scoreList.map(([id, score]) => `${names[id] || id}: ${score}`).join('\n');
+  const scoresWithNames = scoreList.map(([id, score]) => `${names[id] || id}: ${BigInt(score).toLocaleString()}`).join('\n');
 
   let highScore = await redis.get(`${arena}:high_score`);
   let highName = 'no one';
@@ -37,6 +37,7 @@ export async function execute(interaction: CommandInteraction) {
   if (!highPlayerId) {
     highScore = '(none yet)';
   } else {
+    highScore = BigInt(highScore).toLocaleString();
     highName = names[highPlayerId] || `(deleted player #${highPlayerId})`;
   }
   await interaction.reply(`High score: ${highScore} by ${highName}` + '\n```\n' + scoresWithNames + '\n```');
