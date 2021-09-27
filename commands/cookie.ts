@@ -17,7 +17,7 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   const cooldownKey = `${arena}:cookie_cooldown:${playerId}`;
-  const didSet = await redis.set(cooldownKey, '1', 'NX', 'PX', '60000');
+  const didSet = await redis.set(cooldownKey, '1', 'NX', 'EX', '20');
   if (didSet !== 'OK') {
     const ttl = await redis.ttl(cooldownKey);
     await interaction.reply({ content: `Cookie on cooldown for ${ttl}sec`, ephemeral: true });
