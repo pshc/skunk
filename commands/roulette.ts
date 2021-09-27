@@ -7,7 +7,12 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('roulette')
     .setDescription('Either double your points or lose them all!');
 
-const SCHUT = ["**BANG!**", "**POW!**", "💥", "💣", "😵"];
+const MISS = [
+  "😅", "🙃", "😉", "😘", "😍", "😊", "😜", "😝",
+  "😏", "😒", "😌", "😔", "😷", "😎",
+  "😥", "😤", "😠", "💩",
+];
+const SCHUT = ["😵💥🔫", "😳💥🔫", "💀💥🔫", "💥🔫", "💥💥", "💥🔫💥"];
 
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
@@ -43,12 +48,13 @@ export async function execute(interaction: CommandInteraction) {
     await redis.hset(`${arena}:scores`, playerId, '100');
     await interaction.reply(SCHUT[randomInt(SCHUT.length)]);
     // put 'em on death cooldown
-    await redis.set(cooldownKey, '1', 'EX', '30');
+    await redis.set(cooldownKey, '1', 'EX', '20');
   } else {
     // double your money
     const oldScore = BigInt(await redis.hget(`${arena}:scores`, playerId));
     const newScore = oldScore * BigInt(2);
     await redis.hset(`${arena}:scores`, playerId, newScore.toString());
-    await interaction.reply(`_click_. Your score is now ${newScore}.`);
+    const face = MISS[randomInt(MISS.length)];
+    await interaction.reply(`${face}🔫 - score is ${newScore}.`);
   }
 }
