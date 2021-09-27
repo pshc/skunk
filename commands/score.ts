@@ -15,16 +15,16 @@ export async function execute(interaction: CommandInteraction) {
   const scoreList = Array.from(scores.entries());
   scoreList.sort(([idA, scoreA], [idB, scoreB]) => {
     if (scoreB > scoreA) {
-      return -1;
-    } else if (scoreA > scoreB) {
       return 1;
+    } else if (scoreA > scoreB) {
+      return -1;
     } else {
       return Number(idB) - Number(idA); // seniority wins when tied
     }
   });
 
   const names = await redis.hgetall(`${arena}:names`);
-  const scoresWithNames = scoreList.map(([id, score]) => `${names[id] || id}: ${score}`);
+  const scoresWithNames = scoreList.map(([id, score]) => `${names[id] || id}: ${score}`).join('\n');
 
   if (scoreList.length > 0) {
     await interaction.reply('Score:\n```\n' + scoresWithNames + '\n```');
