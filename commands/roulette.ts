@@ -49,11 +49,14 @@ export async function execute(interaction: CommandInteraction) {
     await redis.set(cooldownKey, '1', 'EX', '20');
   } else {
     // multiply your money
-    const multiplier = await redis.incr(revolver + '_multiplier');
+    let multiplier = Number(await redis.incr(revolver + '_multiplier'));
+    if (multiplier > 5) {
+        multiplier = 10;
+    }
     const oldScore = BigInt(await redis.hget(`${arena}:scores`, playerId));
     const newScore = oldScore * BigInt(multiplier);
     await redis.hset(`${arena}:scores`, playerId, newScore.toString());
     const face = MISS[randomInt(MISS.length)];
-    await interaction.reply(`${face}🔫 score ${multiplier}X to ${newScore}`);
+    await interaction.reply(`${face}🔫 score ${multiplier}x to ${newScore}`);
   }
 }
