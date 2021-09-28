@@ -11,18 +11,16 @@ export async function execute(interaction: CommandInteraction) {
   const arena = lookupArena(interaction);
   await lookupPlayerId(arena, interaction);
 
-  const itemIds: ItemId[] = await redis.smembers(`${arena}:abandoned_items`);
-  if (!itemIds.length) {
+  const abandonedIds: ItemId[] = await redis.smembers(`${arena}:abandoned_items`);
+  if (!abandonedIds.length) {
     await interaction.reply({ content: 'The streets are empty.', ephemeral: true });
     return;
   }
 
-  // scan their inventory
-  const descs = await Promise.all(itemIds.map(async (itemId: ItemId) => {
+  // scan for abandoned animals
+  const descs = await Promise.all(abandonedIds.map(async (itemId: ItemId) => {
     const itemName = await redis.get(`${arena}:item:${itemId}:name`);
-    const itemType = await redis.get(`${arena}:item:${itemId}:type`);
-    const strength = await redis.hget(`${arena}:item:${itemId}:stats`, 'STR');
-    return `${itemType} "${itemName}" STR ${strength}`;
+    return itemName;
   }));
 
   await interaction.reply(`You see on the streets: ${descs.join(', ')}`);
