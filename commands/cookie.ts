@@ -24,6 +24,8 @@ const DIFFICULTIES = {
   'hard': 3, 'very hard': 4, 'nearly impossible': 5,
 };
 
+const LINE_LENGTH = 30;
+
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
   const arena = lookupArena(interaction);
@@ -60,6 +62,9 @@ export async function execute(interaction: CommandInteraction) {
     outcome.push(`+ ${exponent} ${difficultyName}`);
     // each item has a chance to add to the multiplier
     let anySuccess = false;
+    // we'll build up lines incrementally and flush them when they're long
+    let plusLine = '';
+    let zeroLine = '';
     for (const itemId of itemIds) {
       const itemName = await redis.get(`${arena}:item:${itemId}:name`);
       const strength = Number(await redis.hget(`${arena}:item:${itemId}:stats`, 'STR'));
@@ -73,11 +78,33 @@ export async function execute(interaction: CommandInteraction) {
         outcome.push(`- 1 ${itemName} crit fail`);
       } else if (skillCheck + strength >= difficulty) {
         exponent += 1;
-        outcome.push(`+ 1 ${itemName}`);
+        const add = plusLine ? ` +1 ${itemName}` : `+ 1 ${itemName}`;
+        // should we wrap?
+        if (plusLine.length + add.length > LINE_LENGTH) {
+          outcome.push(plusLine);
+          plusLine = `+ 1 ${itemName}`;
+        } else {
+          plusLine += add;
+        }
         anySuccess = true;
       } else {
-        outcome.push(`  0 ${itemName}`);
+        const zero = zeroLine ? ` 0 ${itemName}` : `  0 ${itemName}`;
+        if (zeroLine.length + zero.length > LINE_LENGTH) {
+          outcome.push(zeroLine);
+          zeroLine = `  0 ${itemName}`;
+        } else {
+          zeroLine += zero;
+        }
       }
+    }
+    // flush any half-open lines
+    if (plusLine) {
+      outcome.push(plusLine);
+      plusLine = '';
+    }
+    if (zeroLine) {
+      outcome.push(zeroLine);
+      zeroLine = '';
     }
     // did we pass any difficulty checks?
     if (anySuccess) {
