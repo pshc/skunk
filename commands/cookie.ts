@@ -14,13 +14,13 @@ data.addStringOption(option =>
     .setRequired(true)
     .addChoices([
       ["random", "random"],
-      ["very easy", "very easy"], ["easy", "easy"], ["medium", "medium"],
+      ["easy", "easy"], ["medium", "medium"],
       ["hard", "hard"], ["very hard", "very hard"], ["nearly impossible", "nearly impossible"]
     ])
 );
 
 const DIFFICULTIES = {
-  'very easy': 0, 'easy': 1, 'medium': 2,
+  'easy': 1, 'medium': 2,
   'hard': 3, 'very hard': 4, 'nearly impossible': 5,
 };
 
