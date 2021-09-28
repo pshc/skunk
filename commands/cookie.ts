@@ -11,7 +11,7 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
 data.addStringOption(option =>
   option.setName('difficulty')
     .setDescription('Set the difficulty level of your bonus skill checks.')
-    .setRequired(false)
+    .setRequired(true)
     .addChoices([
       ["random", "random"],
       ["very easy", "very easy"], ["easy", "easy"], ["medium", "medium"],
@@ -57,7 +57,7 @@ export async function execute(interaction: CommandInteraction) {
   const itemIds: ItemId[] = await redis.smembers(inventory);
   if (itemIds.length > 0) {
     // initial multiplier derived from difficulty class
-    outcome.push(`+ ${exponent} ${difficulty}`);
+    outcome.push(`+ ${exponent} ${difficultyName}`);
     // each item has a chance to add to the multiplier
     let anySuccess = false;
     for (const itemId of itemIds) {
