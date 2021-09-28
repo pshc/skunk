@@ -48,6 +48,14 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.reply(SCHUT[randomInt(SCHUT.length)]);
     // put 'em on death cooldown
     await redis.set(cooldownKey, '1', 'EX', '20');
+    // cancel cooldowns for everyone else
+    const tx = redis.multi();
+    for (const id in await redis.hkeys(`${arena}:names`)) {
+      if (id != playerId) {
+        tx.del(`${arena}:roulette_cooldown:${id}`);
+      }
+    }
+    await tx.exec();
   } else {
     // multiply your money
     let multiplier = Number(await redis.incr(revolver + '_multiplier'));
