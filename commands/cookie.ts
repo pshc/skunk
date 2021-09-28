@@ -24,7 +24,7 @@ const DIFFICULTIES = {
   'hard': 3, 'very hard': 4, 'nearly impossible': 5,
 };
 
-const LINE_LENGTH = 30;
+const LINE_LENGTH = 78;
 
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
