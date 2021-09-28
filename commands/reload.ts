@@ -17,7 +17,7 @@ export async function execute(interaction: CommandInteraction) {
 
   // manual reload means gun gets too hot for anyone to pick it up
   const cooldownKey = `${arena}:reload_cooldown`;
-  const didSet = await redis.set(cooldownKey, '1', 'NX', 'EX', '60');
+  const didSet = await redis.set(cooldownKey, '1', 'NX', 'EX', '30');
   if (didSet !== 'OK') {
     const ttl = await redis.ttl(cooldownKey);
     await interaction.reply({ content: `Manual reload on cooldown for ${ttl}sec.`, ephemeral: true });
