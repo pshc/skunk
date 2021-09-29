@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena, lookupPlayerId } from '../api';
 import { reload } from './reload';
-import { updateHighScore } from './score';
+import { updateHighScore } from './roulettescore';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('shoot')
