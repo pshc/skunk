@@ -60,5 +60,5 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   // update roll count
-  await redis.hincr(`${arena}:maiden:roll_counts`, playerId);
+  await redis.hincrby(`${arena}:maiden:roll_counts`, playerId, 1);
 }
