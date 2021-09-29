@@ -18,12 +18,17 @@ export async function execute(interaction: CommandInteraction) {
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
   const names = await redis.hgetall(`${arena}:names`);
   const counts: [string, number][] = [];
+  let sum = 0;
   for (let rollerId in rollCountsById) {
     const rollerCount = Number(rollCountsById[rollerId]);
     counts.push([names[rollerId], rollerCount]);
+    sum += rollerCount;
   }
   counts.sort(([_a, countA], [_b, countB]) => countA - countB);
   const countDescs = counts.map(([name, count]) => `${name} (${count})`);
+  if (sum > 0) {
+    countDescs.push(`Total: ${sum}`);
+  }
 
   await interaction.reply(`High score: ${highScore} by ${highName}
 Currently rolling ${diceCount}d100.
