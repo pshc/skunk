@@ -6,8 +6,8 @@ import { reload } from './reload';
 import { updateHighScore } from './score';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
-    .setName('roulette')
-    .setDescription('Either double your points or lose them all!');
+    .setName('shoot')
+    .setDescription('Russian roulette');
 
 const MISS = [
   "😅", "🙃", "😉", "😘", "😍", "😊", "😜", "😝",
