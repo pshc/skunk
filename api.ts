@@ -16,7 +16,8 @@ export function lookupArena(interaction: CommandInteraction): Arena {
   if (interaction.guildId !== process.env.DISCORD_GUILD_ID) {
     throw new Error("This discord server does not have an active game, sorry!");
   }
-  return 'arena:1';
+  // GAME TWO
+  return 'arena:2';
 }
 
 export async function lookupPlayerId(arena: Arena, interaction: CommandInteraction): Promise<PlayerId> {
