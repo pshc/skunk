@@ -58,4 +58,7 @@ export async function execute(interaction: CommandInteraction) {
     await redis.set(`${arena}:maiden:high_score`, sum);
     await redis.set(`${arena}:maiden:high_name`, name);
   }
+
+  // update roll count
+  await redis.hincr(`${arena}:maiden:roll_counts`, playerId);
 }
