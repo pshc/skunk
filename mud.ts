@@ -1,3 +1,9 @@
+/// An ID for a Player or Room. e.g. `p1`, `r20`
+export type Entity = string;
+
+/// Redis prefix for one game state space.
+export type World = string;
+
 /// A 3D coordinate in space.
 export type Pos = { x: number, y: number, z: number };
 export const SPAWN = '0,0,0';
@@ -40,5 +46,43 @@ export function addDirection(pos: Pos, direction: Direction): Pos {
     case 'u': return { x, y, z: z + 1 };
     case 'd': return { x, y, z: z - 1 };
     default: throw new Error(`Bad direction \`${sanify(direction)}\``);
+  }
+}
+
+/// Returns the coordinates of a given entity.
+export async function position(world: World, entity: Entity): Promise<Pos> {
+  const { redis } = global as any;
+  const pos: string = await redis.hget(`${world}:pos`, entity);
+  return strToPos(pos || SPAWN)
+}
+
+/// Returns the entity of the room at `coordinates` (if any).
+export async function roomAtPos(world: World, pos: Pos): Promise<Entity | void> {
+  const { redis } = global as any;
+  return await redis.hget(`${world}:rooms:by:pos`, posToStr(pos));
+}
+
+/// Returns the formatted description of room `room` at position `roomPos`.
+export async function lookAtRoom(world: World, room: Entity, roomPos: Pos): Promise<string> {
+  // TODO check that room & roomPos line up? tiny race condition tho
+  const { redis } = global as any;
+
+  // look up the description by entity
+  const desc = await redis.hget(`${world}:description`, room);
+  const youSee = desc ? 'You see:\n`' + desc + '`' : 'You see a non-descript space.';
+
+  // compute exits the slow way - by checking all adjacent coordinates
+  const allExits = await Promise.all(DIRECTIONS.map(async (dir: Direction) => {
+    const exitPos = addDirection(roomPos, dir);
+    const exitRoom = await redis.hget(`${world}:rooms:by:pos`, exitPos);
+    return exitRoom ? dir : null;
+  }));
+
+  const validExits: Direction[] = allExits.filter(dir => !!dir);
+  if (validExits.length > 0) {
+    const exitsDesc = 'Exits: ' + validExits.map(dir => dir.toUpperCase()).join(', ');
+    return youSee + '\n' + exitsDesc;
+  } else {
+    return youSee;
   }
 }
