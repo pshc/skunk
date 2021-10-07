@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsc && ava",
     "start": "tsc && node deploy-commands && node dist/index.js",
     "clean": "rm -rf -- dist"
   },
@@ -20,9 +20,11 @@
     "dotenv": "10.0"
   },
   "devDependencies": {
+    "@ava/typescript": "2",
     "@types/async-redis": "1",
     "@typescript-eslint/eslint-plugin": "4",
     "@typescript-eslint/parser": "4",
+    "ava": "3",
     "eslint": "7",
     "typescript": "4"
   }
