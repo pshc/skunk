@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, SlashCommandStringOption } from '@discordjs/builders';
 import type { CommandInteraction as Inter } from 'discord.js';
-import { lookupArena, lookupPlayerId } from '../api';
+import { Arena, PlayerId, lookupArena, lookupPlayerId } from '../api';
 import {
   Direction, Entity, World,
   SPAWN,
@@ -49,13 +49,17 @@ export async function execute(interaction: Inter) {
   const { redis } = global as any;
   // ensure they're actually playing
   const arena = lookupArena(interaction);
-  // player entities are 'p' + player ID number
-  const player = 'p' + await lookupPlayerId(arena, interaction);
   // TODO look up world ID using guild ID or arena data
   const world = 'world:1';
   // check if the world exists yet
   if (!await redis.exists(`${world}:rooms:ctr`)) {
     await setupWorld(world);
+  }
+  // check if this player has an entity yet
+  const playerArenaId = await lookupPlayerId(arena, interaction);
+  let player: Entity = await redis.hget(`${arena}:mud:players`, playerArenaId);
+  if (!player) {
+    player = await createPlayer(arena, world, playerArenaId);
   }
 
   // dispatch to the correct handler below
@@ -78,6 +82,21 @@ async function setupWorld(world: World) {
   tx.hset(`${world}:rooms:by:pos`, SPAWN, spawnRoom);
   tx.hset(`${world}:description`, spawnRoom, 'This is the spawn room.');
   await tx.exec();
+}
+
+async function createPlayer(arena: Arena, world: World, playerId: PlayerId): Promise<Entity> {
+  const { redis } = global as any;
+  const ctr = await redis.incr(`${world}:players:ctr`);
+  const player = 'p' + ctr;
+  const playerName = await redis.hget(`${arena}:names`, playerId);
+
+  const tx = redis.multi();
+  tx.hset(`${world}:players`, player, playerName || 'Anon');
+  tx.hset(`${world}:pos`, player, SPAWN);
+  // make sure we can look up this player next time
+  tx.hset(`${arena}:mud:players`, playerId, player);
+  await tx.exec();
+  return player;
 }
 
 CMD.set('look', (world: World, player: Entity, _: Inter) => look(world, player));
