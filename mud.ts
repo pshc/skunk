@@ -74,7 +74,7 @@ export async function lookAtRoom(world: World, room: Entity, roomPos: Pos): Prom
   // compute exits the slow way - by checking all adjacent coordinates
   const allExits = await Promise.all(DIRECTIONS.map(async (dir: Direction) => {
     const exitPos = addDirection(roomPos, dir);
-    const exitRoom = await redis.hget(`${world}:rooms:by:pos`, exitPos);
+    const exitRoom = await redis.hget(`${world}:rooms:by:pos`, posToStr(exitPos));
     return exitRoom ? dir : null;
   }));
 

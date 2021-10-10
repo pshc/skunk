@@ -116,7 +116,7 @@ export async function go(world: World, player: Entity, direction: Direction): Pr
   const { redis } = global as any;
   const pos = await position(world, player);
   const newPos = addDirection(pos, direction);
-  const newRoom = await redis.hget(`${world}:rooms:by:pos`, newPos);
+  const newRoom = await redis.hget(`${world}:rooms:by:pos`, posToStr(newPos));
   if (!newRoom) {
     if (direction === 'u') {
       return 'There is no way up from here!';
@@ -126,7 +126,7 @@ export async function go(world: World, player: Entity, direction: Direction): Pr
       return 'You bump into a wall!';
     }
   }
-  await redis.hset(`${world}:pos`, player, newRoom);
+  await redis.hset(`${world}:pos`, player, newPos);
   return lookAtRoom(world, newRoom, newPos);
 }
 
@@ -143,12 +143,15 @@ export async function dig(world: World, player: Entity, direction: Direction): P
   const existing = await redis.hget(`${world}:rooms:by:pos`, posToStr(dugPos));
   // okay, if it already exists just go there
   if (existing) {
-    await redis.hset(`${world}:pos`, player, existing);
+    await redis.hset(`${world}:pos`, player, dugPos);
     return lookAtRoom(world, existing, dugPos);
   }
   // otherwise, carve it out
   const dugRoom = 'r' + await redis.incr(`${world}:rooms:ctr`);
-  await redis.hset(`${world}:rooms:by:pos`, posToStr(dugPos), dugRoom);
+  const tx = redis.multi();
+  tx.sadd(`${world}:rooms`, dugRoom);
+  tx.hset(`${world}:rooms:by:pos`, posToStr(dugPos), dugRoom);
+  await tx.exec();
 }
 
 CMD.set('describe', (world: World, player: Entity, interaction: Inter) => {
