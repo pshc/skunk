@@ -46,10 +46,11 @@ export async function execute(interaction: CommandInteraction) {
   if (isMaxRoll) {
     await redis.incr(countKey); // increase target number of dice
     await interaction.reply(`${name} MAX ROLL: \`${rolls}\` Result: ${sum}`);
+    await redis.del(prevKey);
   } else {
     await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}`);
-    // don't let them re-roll consecutively (at least for 5 min)
-    await redis.setex(prevKey, '300', playerId);
+    // don't let them re-roll consecutively
+    await redis.set(prevKey, playerId);
   }
 
   // update high score
