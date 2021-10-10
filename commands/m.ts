@@ -46,12 +46,17 @@ function cardinalDirections(dir: SlashCommandStringOption): SlashCommandStringOp
 const CMD: Map<string, (a: World, p: Entity, i: Inter) => Promise<string>> = new Map();
 
 export async function execute(interaction: Inter) {
+  const { redis } = global as any;
   // ensure they're actually playing
   const arena = lookupArena(interaction);
   // player entities are 'p' + player ID number
   const player = 'p' + await lookupPlayerId(arena, interaction);
   // TODO look up world ID using guild ID or arena data
   const world = 'world:1';
+  // check if the world exists yet
+  if (!await redis.exists(`${world}:rooms:ctr`)) {
+    await setupWorld(world);
+  }
 
   // dispatch to the correct handler below
   const command = CMD.get(interaction.options.getString('command'));
@@ -62,6 +67,17 @@ export async function execute(interaction: Inter) {
   if (content) {
     interaction.reply({ content, ephemeral: true });
   }
+}
+
+async function setupWorld(world: World) {
+  const { redis } = global as any;
+  const spawnRoom = 'r' + await redis.incr(`${world}:rooms:ctr`);
+  console.log(`Setting up ${world} with spawn ${spawnRoom}`);
+  const tx = redis.multi();
+  tx.sadd(`${world}:rooms`, spawnRoom);
+  tx.hset(`${world}:rooms:by:pos`, SPAWN, spawnRoom);
+  tx.hset(`${world}:description`, spawnRoom, 'This is the spawn room.');
+  await tx.exec();
 }
 
 CMD.set('look', (world: World, player: Entity, _: Inter) => look(world, player));
