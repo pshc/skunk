@@ -143,7 +143,7 @@ export async function dig(world: World, player: Entity, direction: Direction): P
   const existing = await redis.hget(`${world}:rooms:by:pos`, posToStr(dugPos));
   // okay, if it already exists just go there
   if (existing) {
-    await redis.hset(`${world}:pos`, player, dugPos);
+    await redis.hset(`${world}:pos`, player, posToStr(dugPos));
     return lookAtRoom(world, existing, dugPos);
   }
   // otherwise, carve it out
@@ -152,6 +152,7 @@ export async function dig(world: World, player: Entity, direction: Direction): P
   tx.sadd(`${world}:rooms`, dugRoom);
   tx.hset(`${world}:rooms:by:pos`, posToStr(dugPos), dugRoom);
   await tx.exec();
+  return 'You carve out a new room!';
 }
 
 CMD.set('describe', (world: World, player: Entity, interaction: Inter) => {
