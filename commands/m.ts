@@ -126,7 +126,7 @@ export async function go(world: World, player: Entity, direction: Direction): Pr
       return 'You bump into a wall!';
     }
   }
-  await redis.hset(`${world}:pos`, player, newPos);
+  await redis.hset(`${world}:pos`, player, posToStr(newPos));
   return lookAtRoom(world, newRoom, newPos);
 }
 
