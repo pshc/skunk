@@ -11,30 +11,26 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('m')
   .setDescription('Multi-User Dungeon');
 
-data.addSubcommandGroup(group => {
-  group.setName("command").setDescription("Command")
-  group.addSubcommand(cmd =>
-    cmd.setName("look").setDescription("Describe your current location")
-  );
-  group.addSubcommand(cmd =>
-    cmd.setName("go").setDescription("Move in a direction")
-      .addStringOption(cardinalDirections)
-  );
-  group.addSubcommand(cmd =>
-    cmd.setName("dig").setDescription("Carve a new exit")
-      .addStringOption(cardinalDirections)
-  );
-  group.addSubcommand(cmd =>
-    cmd.setName("describe").setDescription("Change this room's description")
-      .addStringOption(opt =>
-        opt.setName("text").setDescription("<description here>").setRequired(true)
-      )
-  );
-  group.addSubcommand(cmd =>
-    cmd.setName("respawn").setDescription("Return to the start room")
-  );
-  return group;
-});
+data.addSubcommand(cmd =>
+  cmd.setName("look").setDescription("Describe your current location")
+);
+data.addSubcommand(cmd =>
+  cmd.setName("go").setDescription("Move in a direction")
+    .addStringOption(cardinalDirections)
+);
+data.addSubcommand(cmd =>
+  cmd.setName("dig").setDescription("Carve a new exit")
+    .addStringOption(cardinalDirections)
+);
+data.addSubcommand(cmd =>
+  cmd.setName("describe").setDescription("Change this room's description")
+    .addStringOption(opt =>
+      opt.setName("text").setDescription("<description here>").setRequired(true)
+    )
+);
+data.addSubcommand(cmd =>
+  cmd.setName("respawn").setDescription("Return to the start room")
+);
 
 function cardinalDirections(dir: SlashCommandStringOption): SlashCommandStringOption {
   dir.setName("direction").setDescription("Direction").setRequired(true)
@@ -63,7 +59,7 @@ export async function execute(interaction: Inter) {
   }
 
   // dispatch to the correct handler below
-  const command = CMD.get(interaction.options.getString('command'));
+  const command = CMD.get(interaction.options.getSubcommand(true));
   if (!command) {
     throw new Error('Command handler missing!');
   }
