@@ -75,6 +75,7 @@ async function setupWorld(world: World) {
   console.log(`Setting up ${world} with spawn ${spawnRoom}`);
   const tx = redis.multi();
   tx.sadd(`${world}:rooms`, spawnRoom);
+  tx.hset(`${world}:pos`, spawnRoom, SPAWN);
   tx.hset(`${world}:rooms:by:pos`, SPAWN, spawnRoom);
   tx.hset(`${world}:description`, spawnRoom, 'This is the spawn room.');
   await tx.exec();
@@ -150,6 +151,7 @@ export async function dig(world: World, player: Entity, direction: Direction): P
   const dugRoom = 'r' + await redis.incr(`${world}:rooms:ctr`);
   const tx = redis.multi();
   tx.sadd(`${world}:rooms`, dugRoom);
+  tx.hset(`${world}:pos`, dugRoom, posToStr(dugPos));
   tx.hset(`${world}:rooms:by:pos`, posToStr(dugPos), dugRoom);
   // and move into it
   tx.hset(`${world}:pos`, player, posToStr(dugPos));
