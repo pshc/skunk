@@ -151,6 +151,8 @@ export async function dig(world: World, player: Entity, direction: Direction): P
   const tx = redis.multi();
   tx.sadd(`${world}:rooms`, dugRoom);
   tx.hset(`${world}:rooms:by:pos`, posToStr(dugPos), dugRoom);
+  // and move into it
+  tx.hset(`${world}:pos`, player, posToStr(dugPos));
   await tx.exec();
   return 'You carve out a new room!';
 }
