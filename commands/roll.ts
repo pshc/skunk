@@ -1,3 +1,4 @@
+import { promises as fsAsync } from 'fs';
 import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
@@ -62,4 +63,9 @@ export async function execute(interaction: CommandInteraction) {
 
   // update roll count
   await redis.hincrby(`${arena}:maiden:roll_counts`, playerId, 1);
+
+  // record the roll
+  const csv = `rolls_${arena}_${diceCount}d100.csv`;
+  const now = new Date().toISOString();
+  await fsAsync.appendFile(csv, `${rolls.join(',')},${now},${name}\n`);
 }
