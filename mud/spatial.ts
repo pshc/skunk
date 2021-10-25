@@ -1,8 +1,5 @@
-/// An ID for a Player or Room. e.g. `p1`, `r20`
-export type Entity = string;
-
-/// Redis prefix for one game state space.
-export type World = string;
+import type { Entity, World } from '.';
+import { sanify } from './input';
 
 /// A 3D coordinate in space.
 export type Pos = { x: number, y: number, z: number };
@@ -12,10 +9,16 @@ export const SPAWN = '0,0,0';
 export type Direction = 'n' | 's' | 'e' | 'w' | 'u' | 'd';
 export const DIRECTIONS: Direction[] = ['n', 's', 'e', 'w', 'u', 'd'];
 
-/// Clean up some player-input string.
-export function sanify(desc: string): string {
-  const pruned = desc.trim().replace(/[^\w\s,.'";:()<>!?&$%#/+=~-]/g, '');
-  return pruned.replace(/\s+/g, ' ').trim().slice(0, 300);
+export async function setupWorld(world: World) {
+  const { redis } = global as any;
+  const spawnRoom = 'r' + await redis.incr(`${world}:rooms:ctr`);
+  console.log(`Setting up ${world} with spawn ${spawnRoom}`);
+  const tx = redis.multi();
+  tx.sadd(`${world}:rooms`, spawnRoom);
+  tx.hset(`${world}:pos`, spawnRoom, SPAWN);
+  tx.hset(`${world}:rooms:by:pos`, SPAWN, spawnRoom);
+  tx.hset(`${world}:description`, spawnRoom, 'This is the spawn room.');
+  await tx.exec();
 }
 
 /// Converts a redis str to a 3D coordinate object.

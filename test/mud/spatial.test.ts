@@ -1,10 +1,5 @@
 import test from 'ava';
-import { SPAWN, addDirection, sanify, strToPos, posToStr } from '../mud';
-
-test('sanify', t => {
-  t.is(sanify(' **A** '), 'A');
-  t.is(sanify('what @   ever'), 'what ever');
-});
+import { SPAWN, addDirection, strToPos, posToStr } from '../../mud/spatial';
 
 test('strToPos', t => {
   t.deepEqual(strToPos(SPAWN), { x: 0, y: 0, z: 0 });
