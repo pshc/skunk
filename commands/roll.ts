@@ -49,7 +49,8 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.reply(`${name} MAX ROLL: \`${rolls}\` Result: ${sum}`);
     await redis.del(prevKey);
   } else {
-    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}`);
+    const spirit = diceCount === 2 ? twoSpirit(rolls[0], rolls[1], sum) : '';
+    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
@@ -68,4 +69,22 @@ export async function execute(interaction: CommandInteraction) {
   const csv = `rolls_${arena}_${diceCount}d100.csv`;
   const now = new Date().toISOString();
   await fsAsync.appendFile(csv, `${rolls.join(',')},${now},${name}\n`);
+}
+
+function twoSpirit(a: number, b: number, sum: number): string {
+  if (a === 69 && b === 69) {
+    const DOUBLE_NICE = ['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)'];
+    return ' ' + DOUBLE_NICE[randomInt(DOUBLE_NICE.length)];
+  }
+  else if (a === 69 || b === 69 || sum === 169) {
+    const NICE = ['( ͝° ͜ʖ͡°)', '(nice)', '★~(◠‿◕✿)', '(⁄ ⁄•⁄ω⁄•⁄ ⁄)', '( ͡° ͜ʖ├┬┴┬┴', '(✌ﾟ∀ﾟ)☞'];
+    return ' ' + NICE[randomInt(NICE.length)];
+  }
+  else if (sum === 111) {
+    return ' 🌠';
+  }
+  else if (sum === 2) {
+    return ' (oof)';
+  }
+  return '';
 }
