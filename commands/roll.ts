@@ -76,7 +76,7 @@ function twoSpirit(a: number, b: number, sum: number): string {
     const DOUBLE_NICE = ['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)'];
     return ' ' + DOUBLE_NICE[randomInt(DOUBLE_NICE.length)];
   }
-  else if (a === 69 || b === 69 || sum === 169) {
+  else if (a === 69 || b === 69 || sum === 69) {
     const NICE = ['( ͝° ͜ʖ͡°)', '(nice)', '★~(◠‿◕✿)', '(⁄ ⁄•⁄ω⁄•⁄ ⁄)', '( ͡° ͜ʖ├┬┴┬┴', '(✌ﾟ∀ﾟ)☞'];
     return ' ' + NICE[randomInt(NICE.length)];
   }
