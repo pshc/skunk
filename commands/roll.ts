@@ -5,14 +5,14 @@ import type { CommandInteraction } from 'discord.js';
 import { lookupArena, lookupPlayerId } from '../api';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
-    .setName('roll')
-    .setDescription('Try for the max score on xd100.');
+  .setName('roll')
+  .setDescription('Try for the max score on xd100.');
 
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
   const arena = lookupArena(interaction);
   const playerId = await lookupPlayerId(arena, interaction);
-  const name = await redis.hget(`${arena}:names`, playerId) || '???';
+  const name = (await redis.hget(`${arena}:names`, playerId)) || '???';
 
   // prevent consecutive rolls
   const prevKey = `${arena}:maiden:previous_roller`;
@@ -50,7 +50,9 @@ export async function execute(interaction: CommandInteraction) {
     await redis.del(prevKey);
   } else {
     const spirit = diceCount === 2 ? twoSpirit(rolls[0], rolls[1], sum) : '';
-    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`);
+    await interaction.reply(
+      `${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`
+    );
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
@@ -72,19 +74,25 @@ export async function execute(interaction: CommandInteraction) {
 }
 
 function twoSpirit(a: number, b: number, sum: number): string {
-  if (a === 69 && b === 69) {
-    const DOUBLE_NICE = ['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)'];
-    return ' ' + DOUBLE_NICE[randomInt(DOUBLE_NICE.length)];
+  switch (true) {
+    case a === 69 && b === 69:
+      const DOUBLE_NICE = ['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)'];
+      return ' ' + DOUBLE_NICE[randomInt(DOUBLE_NICE.length)];
+    case sum === 2:
+      return ' (oof)';
+    case a === b:
+      return 'DOUBLES! :beers:';
+    case a === 69 || b === 69 || sum === 69:
+      const NICE = [
+        '( ͝° ͜ʖ͡°)',
+        '(nice)',
+        '★~(◠‿◕✿)',
+        '(⁄ ⁄•⁄ω⁄•⁄ ⁄)',
+        '( ͡° ͜ʖ├┬┴┬┴',
+        '(✌ﾟ∀ﾟ)☞',
+      ];
+      return ' ' + NICE[randomInt(NICE.length)];
+    case sum === 111:
+      return ' 🌠';
   }
-  else if (a === 69 || b === 69 || sum === 69) {
-    const NICE = ['( ͝° ͜ʖ͡°)', '(nice)', '★~(◠‿◕✿)', '(⁄ ⁄•⁄ω⁄•⁄ ⁄)', '( ͡° ͜ʖ├┬┴┬┴', '(✌ﾟ∀ﾟ)☞'];
-    return ' ' + NICE[randomInt(NICE.length)];
-  }
-  else if (sum === 111) {
-    return ' 🌠';
-  }
-  else if (sum === 2) {
-    return ' (oof)';
-  }
-  return '';
 }
