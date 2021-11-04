@@ -1,3 +1,5 @@
+[![Typechecks and unit tests](https://github.com/pshc/skunk/actions/workflows/test.yml/badge.svg)](https://github.com/pshc/skunk/actions/workflows/test.yml)
+
 ## Requirements
 
 - Node.js
