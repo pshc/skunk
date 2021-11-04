@@ -94,5 +94,7 @@ function twoSpirit(a: number, b: number, sum: number): string {
       return ' ' + NICE[randomInt(NICE.length)];
     case sum === 111:
       return ' 🌠';
+    default:
+      return '';
   }
 }
