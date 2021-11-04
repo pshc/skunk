@@ -81,7 +81,7 @@ function twoSpirit(a: number, b: number, sum: number): string {
     case sum === 2:
       return ' (oof)';
     case a === b:
-      return 'DOUBLES! :beers:';
+      return ' DOUBLES! :beers:';
     case a === 69 || b === 69 || sum === 69:
       const NICE = [
         '( ͝° ͜ʖ͡°)',
