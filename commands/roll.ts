@@ -31,7 +31,7 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   // roll xd100
-  const rolls = [];
+  const rolls: number[] = [];
   let sum = 0;
   let isMaxRoll = true;
   for (let i = 0; i < diceCount; i++) {
@@ -57,20 +57,38 @@ export async function execute(interaction: CommandInteraction) {
     await redis.set(prevKey, playerId);
   }
 
-  // update high score
-  const oldHighScore = Number(await redis.get(`${arena}:maiden:high_score`));
-  if (!oldHighScore || oldHighScore < sum) {
-    await redis.set(`${arena}:maiden:high_score`, sum);
-    await redis.set(`${arena}:maiden:high_name`, name);
-  }
-
-  // update roll count
-  await redis.hincrby(`${arena}:maiden:roll_counts`, playerId, 1);
-
-  // record the roll
-  const csv = `rolls_${arena}_${diceCount}d100.csv`;
-  const now = new Date().toISOString();
-  await fsAsync.appendFile(csv, `${rolls.join(',')},${now},${name}\n`);
+  // statistics
+  await Promise.all([
+    (async () => {
+      // update all-time high score
+      const oldHighScore = Number(await redis.get(`${arena}:maiden:high_score`));
+      if (!oldHighScore || oldHighScore < sum) {
+        await redis.set(`${arena}:maiden:high_score`, sum);
+        await redis.set(`${arena}:maiden:high_name`, name);
+      }
+    })(),
+    (async () => {
+      // update daily high score
+      const today = todayRollKey(arena);
+      const dailyHighScore = Number(await redis.get(`${today}:score`));
+      if (!dailyHighScore || dailyHighScore < sum) {
+        // expire these keys a month from now
+        const expiry = 60 * 60 * 24 * 30;
+        await redis.setex(`${today}:score`, expiry, sum);
+        await redis.setex(`${today}:name`, expiry, name);
+      }
+    })(),
+    (async () => {
+      // update roll count
+      await redis.hincrby(`${arena}:maiden:roll_counts`, playerId, 1);
+    })(),
+    (async () => {
+      // record the roll
+      const csv = `rolls_${arena}_${diceCount}d100.csv`;
+      const now = new Date().toISOString();
+      await fsAsync.appendFile(csv, `${rolls.join(',')},${now},${name}\n`);
+    })(),
+  ]);
 }
 
 function twoSpirit(a: number, b: number, sum: number): string {
@@ -97,4 +115,14 @@ function twoSpirit(a: number, b: number, sum: number): string {
     default:
       return '';
   }
+}
+
+export function todayRollKey(arena: string): string {
+  const now = new Date;
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const date = now.getDate();
+  const leadZero = (n: number) => n < 10 ? '0' : '';
+  const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(date)}${date}`;
+  return `${arena}:maiden:day:${fullDate}`;
 }

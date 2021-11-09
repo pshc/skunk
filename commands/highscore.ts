@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena } from '../api';
+import { todayRollKey } from './roll';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('highscore')
@@ -13,6 +14,10 @@ export async function execute(interaction: CommandInteraction) {
   const highScore = await redis.get(`${arena}:maiden:high_score`);
   const highName = await redis.get(`${arena}:maiden:high_name`);
   const diceCount = await redis.get(`${arena}:maiden:dice_count`);
+
+  const today = todayRollKey(arena);
+  const todayScore = (await redis.get(`${today}:score`)) || '0';
+  const todayName = (await redis.get(`${today}:name`)) || '<nobody yet>';
 
   // sort roll counts
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
@@ -31,6 +36,7 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   await interaction.reply(`High score: ${highScore} by ${highName}
+Today: ${todayScore} by ${todayName}
 Currently rolling ${diceCount}d100.
 Rolls: ${countDescs.join(', ')}`);
 }
