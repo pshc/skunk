@@ -102,7 +102,7 @@ function twoSpirit(a: number, b: number, sum: number): string {
     case a === 69 && b === 69:
       return chooseOne(['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)']);
     case sum === 2:
-      return '(oof)';
+      return '(BIG OOOF)';
     case a === b:
       return 'DOUBLES! :beers:';
     case a === 69 || b === 69 || sum === 69:
@@ -116,10 +116,18 @@ function twoSpirit(a: number, b: number, sum: number): string {
       ]);
     case sum === 111:
       return '🌠';
+    case (a === 1 && b === 100) || (a === 1 && b === 100):
+      return 'HOW IS THIS EVEN POSSIBLE, WHY DO YOU HAVE THIS KARMA?!';
     case a === 100 || b === 100:
-      return '(another 100 wasted)';
+      return '(another :100: wasted)';
     case a === 1 || b === 1:
-      return '(BIG OOOF)';
+      return chooseOne([
+        '(oof)',
+        '(you make me sad)',
+        '(my gram rolls better than you)',
+        `(you're number one!)`,
+        '(git gud)',
+      ]);
     default:
       return '';
   }
