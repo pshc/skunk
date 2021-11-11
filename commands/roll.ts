@@ -111,7 +111,7 @@ function twoSpirit(a: number, b: number, sum: number): string {
       ]);
     case sum === 111:
       return '🌠';
-    case (a === 1 && b === 100) || (a === 1 && b === 100):
+    case (a === 1 && b === 100) || (a === 100 && b === 1):
       return 'HOW IS THIS EVEN POSSIBLE, WHY DO YOU HAVE THIS KARMA?!';
     case a === 100 || b === 100:
       return '(another :100: wasted)';
