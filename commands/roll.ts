@@ -49,11 +49,8 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.reply(`${name} MAX ROLL: \`${rolls}\` Result: ${sum}`);
     await redis.del(prevKey);
   } else {
-    const spirit =
-      diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
-    await interaction.reply(
-      `${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`
-    );
+    const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
+    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
@@ -62,9 +59,7 @@ export async function execute(interaction: CommandInteraction) {
   await Promise.all([
     (async () => {
       // update all-time high score
-      const oldHighScore = Number(
-        await redis.get(`${arena}:maiden:high_score`)
-      );
+      const oldHighScore = Number(await redis.get(`${arena}:maiden:high_score`));
       if (!oldHighScore || oldHighScore < sum) {
         await redis.set(`${arena}:maiden:high_score`, sum);
         await redis.set(`${arena}:maiden:high_name`, name);
@@ -139,8 +134,6 @@ export function todayRollKey(arena: string): string {
   const month = now.getMonth() + 1;
   const date = now.getDate();
   const leadZero = (n: number) => (n < 10 ? '0' : '');
-  const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(
-    date
-  )}${date}`;
+  const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(date)}${date}`;
   return `${arena}:maiden:day:${fullDate}`;
 }
