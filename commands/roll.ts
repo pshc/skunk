@@ -49,7 +49,8 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.reply(`${name} MAX ROLL: \`${rolls}\` Result: ${sum}`);
     await redis.del(prevKey);
   } else {
-    const spirit = diceCount === 2 ? twoSpirit(rolls[0], rolls[1], sum) : '';
+    const spirit =
+      diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     await interaction.reply(
       `${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`
     );
@@ -61,7 +62,9 @@ export async function execute(interaction: CommandInteraction) {
   await Promise.all([
     (async () => {
       // update all-time high score
-      const oldHighScore = Number(await redis.get(`${arena}:maiden:high_score`));
+      const oldHighScore = Number(
+        await redis.get(`${arena}:maiden:high_score`)
+      );
       if (!oldHighScore || oldHighScore < sum) {
         await redis.set(`${arena}:maiden:high_score`, sum);
         await redis.set(`${arena}:maiden:high_name`, name);
@@ -91,38 +94,45 @@ export async function execute(interaction: CommandInteraction) {
   ]);
 }
 
+function chooseOne<T>(options: T[]): T {
+  return options[randomInt(options.length)];
+}
 function twoSpirit(a: number, b: number, sum: number): string {
   switch (true) {
     case a === 69 && b === 69:
-      const DOUBLE_NICE = ['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)'];
-      return ' ' + DOUBLE_NICE[randomInt(DOUBLE_NICE.length)];
+      return chooseOne(['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)']);
     case sum === 2:
-      return ' (oof)';
+      return '(oof)';
     case a === b:
-      return ' DOUBLES! :beers:';
+      return 'DOUBLES! :beers:';
     case a === 69 || b === 69 || sum === 69:
-      const NICE = [
+      return chooseOne([
         '( ͝° ͜ʖ͡°)',
         '(nice)',
         '★~(◠‿◕✿)',
         '(⁄ ⁄•⁄ω⁄•⁄ ⁄)',
         '( ͡° ͜ʖ├┬┴┬┴',
         '(✌ﾟ∀ﾟ)☞',
-      ];
-      return ' ' + NICE[randomInt(NICE.length)];
+      ]);
     case sum === 111:
-      return ' 🌠';
+      return '🌠';
+    case a === 100 || b === 100:
+      return '(another 100 wasted)';
+    case a === 1 || b === 1:
+      return '(BIG OOOF)';
     default:
       return '';
   }
 }
 
 export function todayRollKey(arena: string): string {
-  const now = new Date;
+  const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   const date = now.getDate();
-  const leadZero = (n: number) => n < 10 ? '0' : '';
-  const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(date)}${date}`;
+  const leadZero = (n: number) => (n < 10 ? '0' : '');
+  const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(
+    date
+  )}${date}`;
   return `${arena}:maiden:day:${fullDate}`;
 }
