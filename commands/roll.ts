@@ -67,7 +67,7 @@ export async function execute(interaction: CommandInteraction) {
     })(),
     (async () => {
       // update daily high score
-      const today = todayRollKey(arena);
+      const today = dayRollKey(arena, 'today');
       const dailyHighScore = Number(await redis.get(`${today}:score`));
       if (!dailyHighScore || dailyHighScore < sum) {
         // expire these keys a month from now
@@ -128,11 +128,14 @@ function twoSpirit(a: number, b: number, sum: number): string {
   }
 }
 
-export function todayRollKey(arena: string): string {
+export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   const date = now.getDate();
+  if (day === 'yesterday') {
+    now.setDate(date - 1); // apparently this works
+  }
   const leadZero = (n: number) => (n < 10 ? '0' : '');
   const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(date)}${date}`;
   return `${arena}:maiden:day:${fullDate}`;
