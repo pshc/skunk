@@ -129,13 +129,13 @@ function twoSpirit(a: number, b: number, sum: number): string {
 }
 
 export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const date = now.getDate();
+  const when = new Date();
   if (day === 'yesterday') {
-    now.setDate(date - 1); // apparently this works
+    when.setDate(when.getDate() - 1); // apparently this works
   }
+  const year = when.getFullYear();
+  const month = when.getMonth() + 1;
+  const date = when.getDate();
   const leadZero = (n: number) => (n < 10 ? '0' : '');
   const fullDate = `${year}-${leadZero(month)}${month}-${leadZero(date)}${date}`;
   return `${arena}:maiden:day:${fullDate}`;
