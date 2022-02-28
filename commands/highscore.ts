@@ -22,6 +22,8 @@ export async function execute(interaction: CommandInteraction) {
   const yesterdayScore = (await redis.get(`${yesterday}:score`)) || '0';
   const yesterdayName = (await redis.get(`${yesterday}:name`)) || '<nobody>';
 
+  const adorn = (name: string) => !!name && name === yesterdayName ? `${name}👑` : name;
+
   // sort roll counts
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
   const names = await redis.hgetall(`${arena}:names`);
@@ -33,13 +35,13 @@ export async function execute(interaction: CommandInteraction) {
     sum += rollerCount;
   }
   counts.sort(([_a, countA], [_b, countB]) => countA - countB);
-  const countDescs = counts.map(([name, count]) => `${name} (${count})`);
+  const countDescs = counts.map(([name, count]) => `${adorn(name)} (${count})`);
   if (sum > 0) {
     countDescs.push(`Total: ${sum}`);
   }
 
-  await interaction.reply(`Today: ${todayScore} by ${todayName}
-Yesterday: ${yesterdayScore} by ${yesterdayName}
-All time: ${highScore} by ${highName}
+  await interaction.reply(`Today: ${todayScore} by ${adorn(todayName)}
+Yesterday: ${yesterdayScore} by ${yesterdayName}👑
+All time: ${highScore} by ${adorn(highName)}
 Rolls: ${countDescs.join(', ')}`);
 }

@@ -57,15 +57,20 @@ export async function execute(interaction: CommandInteraction) {
     }
   }
 
+  // crown yesterday's high roller
+  const yesterday = dayRollKey(arena, 'yesterday');
+  const yesterdayChamp = await redis.get(`${yesterday}:name`);
+  const adorn = (name: string) => !!name && name === yesterdayChamp ? `${name}👑` : name;
+
   // announce result
   if (isMaxRoll) {
     await redis.incr(countKey); // increase target number of dice
-    await interaction.reply(`${name} MAX ROLL: \`${rolls}\` Result: ${sum}`);
+    await interaction.reply(`${adorn(name)} MAX ROLL: \`${rolls}\` Result: ${sum}`);
     await redis.del(prevKey);
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     const trend = newDailyHigh === 'higher' ? ' 📈' : (newDailyHigh === 'new day' ? ' ☀️':  '');
-    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}`);
+    await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
