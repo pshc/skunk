@@ -43,6 +43,20 @@ export async function execute(interaction: CommandInteraction) {
     sum += roll;
   }
 
+  let newDailyHigh: undefined | 'new day' | 'higher';
+  {
+    // update daily high score
+    const today = dayRollKey(arena, 'today');
+    const dailyHighScore = Number(await redis.get(`${today}:score`));
+    if (!dailyHighScore || dailyHighScore < sum) {
+      // expire these keys a month from now
+      const expiry = 60 * 60 * 24 * 30;
+      await redis.setex(`${today}:score`, expiry, sum);
+      await redis.setex(`${today}:name`, expiry, name);
+      newDailyHigh = !!dailyHighScore ? 'higher' : 'new day';
+    }
+  }
+
   // announce result
   if (isMaxRoll) {
     await redis.incr(countKey); // increase target number of dice
@@ -50,7 +64,8 @@ export async function execute(interaction: CommandInteraction) {
     await redis.del(prevKey);
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
-    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}${spirit}`);
+    const trend = newDailyHigh === 'higher' ? ' 📈' : (newDailyHigh === 'new day' ? ' ☀️':  '');
+    await interaction.reply(`${name} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
@@ -63,17 +78,6 @@ export async function execute(interaction: CommandInteraction) {
       if (!oldHighScore || oldHighScore < sum) {
         await redis.set(`${arena}:maiden:high_score`, sum);
         await redis.set(`${arena}:maiden:high_name`, name);
-      }
-    })(),
-    (async () => {
-      // update daily high score
-      const today = dayRollKey(arena, 'today');
-      const dailyHighScore = Number(await redis.get(`${today}:score`));
-      if (!dailyHighScore || dailyHighScore < sum) {
-        // expire these keys a month from now
-        const expiry = 60 * 60 * 24 * 30;
-        await redis.setex(`${today}:score`, expiry, sum);
-        await redis.setex(`${today}:name`, expiry, name);
       }
     })(),
     (async () => {
