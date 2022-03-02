@@ -30,14 +30,25 @@ export async function execute(interaction: CommandInteraction) {
     diceCount = 1;
   }
 
+  // Pooper is the last person to roll a 1
+  // get the current pooper
+  const pooperKey = `${arena}:maiden:pooper`;
+  let latestPooper = await redis.get(pooperKey);
+
   // roll xd100
   const rolls: number[] = [];
   let sum = 0;
   let isMaxRoll = true;
+  let isRolledOne = false;
   for (let i = 0; i < diceCount; i++) {
     const roll = randomInt(100) + 1;
     if (roll < 100) {
       isMaxRoll = false;
+    }
+    if (roll === 1) {
+      isRolledOne = true;
+      latestPooper = playerId;
+      await redis.set(pooperKey, latestPooper);
     }
     rolls.push(roll);
     sum += roll;
@@ -60,7 +71,17 @@ export async function execute(interaction: CommandInteraction) {
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
   const yesterdayChamp = await redis.get(`${yesterday}:name`);
-  const adorn = (name: string) => !!name && name === yesterdayChamp ? `${name}👑` : name;
+  const adorn = (name: string) => {
+    const badges = [name];
+    if (!!name && name === yesterdayChamp) {
+      badges.push('👑');
+    }
+    if (!!name && name === latestPooper) {
+      badges.push('💩');
+    }
+
+    return badges.join('');
+  };
 
   // announce result
   if (isMaxRoll) {
@@ -69,7 +90,7 @@ export async function execute(interaction: CommandInteraction) {
     await redis.del(prevKey);
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
-    const trend = newDailyHigh === 'higher' ? ' 📈' : (newDailyHigh === 'new day' ? ' ☀️':  '');
+    const trend = newDailyHigh === 'higher' ? ' 📈' : newDailyHigh === 'new day' ? ' ☀️' : '';
     await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
