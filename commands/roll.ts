@@ -34,21 +34,29 @@ export async function execute(interaction: CommandInteraction) {
   // get the current pooper
   const pooperKey = `${arena}:maiden:pooper`;
   let latestPooper = await redis.get(pooperKey);
+  // pooper streak
+  const poopSuiteKey = `${pooperKey}_streak`;
+  let poopSuite = await redis.get(poopSuiteKey);
 
   // roll xd100
   const rolls: number[] = [];
   let sum = 0;
   let isMaxRoll = true;
-  let isRolledOne = false;
   for (let i = 0; i < diceCount; i++) {
     const roll = randomInt(100) + 1;
     if (roll < 100) {
       isMaxRoll = false;
     }
     if (roll === 1) {
-      isRolledOne = true;
-      latestPooper = playerId;
-      await redis.set(pooperKey, latestPooper);
+      if (name !== latestPooper) {
+        latestPooper = name;
+        poopSuite = 0;
+        await redis.set(pooperKey, latestPooper);
+        await redis.set(poopSuiteKey, '0');
+      } else {
+        // track consecutive ones rolled by the same player
+        poopSuite = Number(await redis.incr(poopSuiteKey));
+      }
     }
     rolls.push(roll);
     sum += roll;
@@ -71,7 +79,7 @@ export async function execute(interaction: CommandInteraction) {
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
   const yesterdayChamp = await redis.get(`${yesterday}:name`);
-  const adorn = (name: string) => adornName({name, champ: yesterdayChamp, pooper: latestPooper});
+  const adorn = (name: string) => adornName({name, champ: yesterdayChamp, pooper: latestPooper, poopSuite});
 
   // announce result
   if (isMaxRoll) {
@@ -161,14 +169,24 @@ export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
   return `${arena}:maiden:day:${fullDate}`;
 }
 
-export const adornName = (params: {name: string, champ: string, pooper: string}) => {
-  const {name, champ, pooper} = params;
+interface AdornParams {
+  name: string,
+  champ: string,
+  pooper: string,
+  poopSuite: number,
+}
+
+export const adornName = (params: AdornParams) => {
+  const {name, champ, pooper, poopSuite} = params;
   const badges = [name];
   if (!!champ && name === champ) {
     badges.push('👑');
   }
   if (!!pooper && name === pooper) {
     badges.push('💩');
+    if (poopSuite > 0) {
+      badges.push(`x${poopSuite}`);
+    }
   }
 
   return badges.join('');
