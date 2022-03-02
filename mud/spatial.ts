@@ -81,7 +81,7 @@ export async function lookAtRoom(world: World, room: Entity, roomPos: Pos): Prom
     return exitRoom ? dir : null;
   }));
 
-  const validExits: Direction[] = allExits.filter(dir => !!dir);
+  const validExits = allExits.filter(dir => !!dir) as Direction[];
   if (validExits.length > 0) {
     const exitsDesc = 'Exits: ' + validExits.map(dir => dir.toUpperCase()).join(', ');
     return youSee + '\n' + exitsDesc;

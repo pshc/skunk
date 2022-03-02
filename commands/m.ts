@@ -83,7 +83,7 @@ CMD.set('dig', (world: World, player: Entity, interaction: Inter) => {
 });
 
 CMD.set('describe', (world: World, player: Entity, interaction: Inter) => {
-  const text = interaction.options.getString('text');
+  const text = interaction.options.getString('text') || '';
   return describe(world, player, text);
 });
 

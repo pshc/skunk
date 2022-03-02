@@ -20,7 +20,7 @@ for (const file of commandFiles) {
 }
 
 client.on('ready', () => {
-  console.log(`Logged in as ${client.user.tag}!`);
+  console.log(`Logged in as ${client.user?.tag}!`);
 });
 
 client.once('invalidated', () => {
@@ -32,12 +32,15 @@ client.on('invalidRequestWarning', ({count, remainingTime}) => {
   console.warn(`Invalid requests: ${count}, remaining time ${remainingTime}`);
 });
 
-client.on('interactionCreate', async (interaction: CommandInteraction) => {
-  if (!interaction.isCommand()) {
-    return;
+client.on('interactionCreate', async (interaction) => {
+  if (interaction.isCommand()) {
+    await handleCommand(interaction);
   }
+});
+
+async function handleCommand(interaction: CommandInteraction) {
   const { commandName } = interaction;
-  const command: Command = commands.get(commandName);
+  const command = commands.get(commandName);
   if (!command) {
     console.warn(`unregistered command ${commandName}`);
     return;
@@ -46,7 +49,7 @@ client.on('interactionCreate', async (interaction: CommandInteraction) => {
   try {
     await command.execute(interaction);
   } catch (error) {
-    if (error.code === 10062) {
+    if (error && typeof error === 'object' && (error as any)['code'] === 10062) {
       console.error('Another instance of the bot is already running?');
       process.exit(1);
     }
@@ -54,7 +57,7 @@ client.on('interactionCreate', async (interaction: CommandInteraction) => {
     const content = 'There was an error while executing this command!';
     await interaction.reply({ content, ephemeral: true });
   }
-});
+}
 
 if (require.main === module) {
   require('dotenv').config();
