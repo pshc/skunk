@@ -4,8 +4,8 @@ import { lookupArena } from '../api';
 import { dayRollKey } from './roll';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
-    .setName('highscore')
-    .setDescription('Show the xd100 rolling record.');
+  .setName('highscore')
+  .setDescription('Show the xd100 rolling record.');
 
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
@@ -22,7 +22,19 @@ export async function execute(interaction: CommandInteraction) {
   const yesterdayScore = (await redis.get(`${yesterday}:score`)) || '0';
   const yesterdayName = (await redis.get(`${yesterday}:name`)) || '<nobody>';
 
-  const adorn = (name: string) => !!name && name === yesterdayName ? `${name}👑` : name;
+  const latestPooper = await redis.get(`${arena}:maiden:pooper`);
+
+  const adorn = (name: string) => {
+    const badges = [name];
+    if (!!name && name === yesterdayName) {
+      badges.push('👑');
+    }
+    if (!!name && name === latestPooper) {
+      badges.push('💩');
+    }
+
+    return badges.join('');
+  };
 
   // sort roll counts
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
