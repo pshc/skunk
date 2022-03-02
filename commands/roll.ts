@@ -79,7 +79,8 @@ export async function execute(interaction: CommandInteraction) {
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
   const yesterdayChamp = await redis.get(`${yesterday}:name`);
-  const adorn = (name: string) => adornName({name, champ: yesterdayChamp, pooper: latestPooper, poopSuite});
+  const adorn = (name: string) =>
+    adornName({ name, champ: yesterdayChamp, pooper: latestPooper, poopSuite });
 
   // announce result
   if (isMaxRoll) {
@@ -170,22 +171,21 @@ export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
 }
 
 interface AdornParams {
-  name: string,
-  champ: string,
-  pooper: string,
-  poopSuite: number,
+  name: string;
+  champ: string;
+  pooper: string;
+  poopSuite: number;
 }
 
 export const adornName = (params: AdornParams) => {
-  const {name, champ, pooper, poopSuite} = params;
+  const { name, champ, pooper, poopSuite } = params;
   const badges = [name];
   if (!!champ && name === champ) {
     badges.push('👑');
   }
   if (!!pooper && name === pooper) {
-    badges.push('💩');
-    if (poopSuite > 0) {
-      badges.push(`x${poopSuite}`);
+    for (let i = 0; i <= poopSuite; i++) {
+      badges.push('💩');
     }
   }
 
