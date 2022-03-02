@@ -170,10 +170,10 @@ export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
 }
 
 interface AdornParams {
-  name: string,
-  champ: string,
-  pooper: string,
-  poopSuite: number,
+  name: string;
+  champ: string;
+  pooper: string;
+  poopSuite: number;
 }
 
 export const adornName = (params: AdornParams) => {
@@ -183,9 +183,8 @@ export const adornName = (params: AdornParams) => {
     badges.push('👑');
   }
   if (!!pooper && name === pooper) {
-    badges.push('💩');
-    if (poopSuite > 0) {
-      badges.push(`x${poopSuite}`);
+    for (let i = 0; i < poopSuite + 1; i++) {
+      badges.push('💩');
     }
   }
 
