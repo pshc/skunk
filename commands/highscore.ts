@@ -44,7 +44,7 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   await interaction.reply(`Today: ${todayScore} by ${adorn(todayName)}
-Yesterday: ${yesterdayScore} by ${yesterdayName}👑
+Yesterday: ${yesterdayScore} by ${adorn(yesterdayName)}
 All time: ${highScore} by ${adorn(highName)}
 Rolls: ${countDescs.join(', ')}`);
 }
