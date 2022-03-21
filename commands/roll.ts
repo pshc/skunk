@@ -30,8 +30,14 @@ export async function execute(interaction: CommandInteraction) {
     diceCount = 1;
   }
 
+  // hundo is the last person to roll a 100
+  const hundoKey = `${arena}:maiden:hundo`;
+  let hundo = await redis.get(hundoKey);
+  // add more sigils for consecutive 100s
+  const hundoStreakKey = `${hundoKey}_streak`;
+  let hundoStreak: number = Number(await redis.get(hundoStreakKey));
+
   // Pooper is the last person to roll a 1
-  // get the current pooper
   const pooperKey = `${arena}:maiden:pooper`;
   let latestPooper = await redis.get(pooperKey);
   // pooper streak
@@ -46,6 +52,16 @@ export async function execute(interaction: CommandInteraction) {
     const roll = randomInt(100) + 1;
     if (roll < 100) {
       isMaxRoll = false;
+    } else {
+      if (name !== hundo) {
+        hundo = name;
+        hundoStreak = 0;
+        await redis.set(hundoKey, hundo);
+        await redis.set(hundoStreakKey, '0');
+      } else {
+        // track consecutive 100s rolled by the same player
+        hundoStreak = Number(await redis.incr(hundoStreakKey));
+      }
     }
     if (roll === 1) {
       if (name !== latestPooper) {
@@ -78,9 +94,9 @@ export async function execute(interaction: CommandInteraction) {
 
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
-  const yesterdayChamp = await redis.get(`${yesterday}:name`);
+  const champ = await redis.get(`${yesterday}:name`);
   const adorn = (name: string) =>
-    adornName({name, champ: yesterdayChamp, pooper: latestPooper, poopSuite});
+    adornName({ name, champ, hundo, hundoStreak, pooper: latestPooper, poopSuite });
 
   // announce result
   if (isMaxRoll) {
@@ -173,15 +189,22 @@ export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
 interface AdornParams {
   name: string;
   champ: string;
+  hundo: string;
+  hundoStreak: number;
   pooper: string;
   poopSuite: number;
 }
 
 export const adornName = (params: AdornParams) => {
-  const {name, champ, pooper, poopSuite} = params;
+  const { name, champ, hundo, hundoStreak, pooper, poopSuite } = params;
   const badges = [name];
   if (!!champ && name === champ) {
     badges.push('👑');
+  }
+  if (!!hundo && name === hundo) {
+    for (let i = 0; i <= hundoStreak; i++) {
+      badges.push('🌸');
+    }
   }
   if (!!pooper && name === pooper) {
     for (let i = 0; i <= poopSuite; i++) {

@@ -22,10 +22,15 @@ export async function execute(interaction: CommandInteraction) {
   const yesterdayScore = (await redis.get(`${yesterday}:score`)) || '0';
   const yesterdayName = (await redis.get(`${yesterday}:name`)) || '<nobody>';
 
+  const hundoKey = `${arena}:maiden:hundo`;
+  const hundo = await redis.get(hundoKey);
+  const hundoStreak = Number(await redis.get(`${hundoKey}_streak`));
+
   const pooperKey = `${arena}:maiden:pooper`;
   const pooper = await redis.get(pooperKey);
   const poopSuite = Number(await redis.get(`${pooperKey}_streak`));
-  const adorn = (name: string) => adornName({name, champ: yesterdayName, pooper, poopSuite});
+  const adorn = (name: string) =>
+    adornName({ name, champ: yesterdayName, hundo, hundoStreak, pooper, poopSuite });
 
   // sort roll counts
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
