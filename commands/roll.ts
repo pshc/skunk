@@ -44,6 +44,9 @@ export async function execute(interaction: CommandInteraction) {
   const poopSuiteKey = `${pooperKey}_streak`;
   let poopSuite: number = Number(await redis.get(poopSuiteKey));
 
+  // last person to roll doubles
+  let doubler = await loadDoubler(arena);
+
   // roll xd100
   const rolls: number[] = [];
   let sum = 0;
@@ -78,6 +81,15 @@ export async function execute(interaction: CommandInteraction) {
     sum += roll;
   }
 
+  // only handle 2d100 doubles for now
+  if (!isMaxRoll && diceCount === 2 && rolls[0] === rolls[1]) {
+    if (name !== doubler.name) {
+      doubler = await saveNewDoubler(arena, name);
+    } else {
+      await increaseDoublerStreak(arena, doubler);
+    }
+  }
+
   let newDailyHigh: undefined | 'new day' | 'higher';
   {
     // update daily high score
@@ -96,7 +108,7 @@ export async function execute(interaction: CommandInteraction) {
   const yesterday = dayRollKey(arena, 'yesterday');
   const champ = await redis.get(`${yesterday}:name`);
   const adorn = (name: string) =>
-    adornName({ name, champ, hundo, hundoStreak, pooper: latestPooper, poopSuite });
+    adornName({ name, champ, hundo, hundoStreak, pooper: latestPooper, poopSuite, doubler });
 
   // announce result
   if (isMaxRoll) {
@@ -193,10 +205,11 @@ interface AdornParams {
   hundoStreak: number;
   pooper: string;
   poopSuite: number;
+  doubler: Doubler;
 }
 
 export const adornName = (params: AdornParams) => {
-  const { name, champ, hundo, hundoStreak, pooper, poopSuite } = params;
+  const { name, champ, hundo, hundoStreak, pooper, poopSuite, doubler } = params;
   const badges = [name];
   if (!!champ && name === champ) {
     badges.push('👑');
@@ -211,6 +224,59 @@ export const adornName = (params: AdornParams) => {
       badges.push('💩');
     }
   }
+  if (!!doubler.name && name === doubler.name) {
+    for (let i = 0; i <= doubler.streak; i++) {
+      badges.push(doubler.token);
+    }
+  }
 
   return badges.join('');
 };
+
+const DOUBLES = ['🍒', '✌️', '🫁', '👯', '🤼', '🫂', '🎎', '🙌', '🖇️', '⚔️', '🛠️', '⛓️', '🛍️', '🚻', '👣', '🧦', '🩰', '⚖️', '🧬', '🎵', '♊'];
+
+// state for the current doubles-roller
+interface Doubler {
+  name: string;
+  streak: number;
+  token: string;
+}
+
+export async function loadDoubler(arena: string): Promise<Doubler> {
+  const { redis } = global as any;
+
+  const doublerKey = `${arena}:maiden:doubler`;
+  const streakKey = `${doublerKey}_streak`;
+  const tokenKey = `${doublerKey}_token`;
+
+  const name = await redis.get(doublerKey);
+  const streak = Number(await redis.get(streakKey));
+  const token = await redis.get(tokenKey);
+  return { name, streak, token };
+}
+
+async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
+  const { redis } = global as any;
+
+  const doublerKey = `${arena}:maiden:doubler`;
+  const streakKey = `${doublerKey}_streak`;
+  const tokenKey = `${doublerKey}_token`;
+
+  // each doubles streak is assigned a random emoji
+  const token = chooseOne(DOUBLES);
+
+  const tx = redis.multi();
+  tx.set(doublerKey, name);
+  tx.set(streakKey, '0');
+  tx.set(tokenKey, token);
+  await tx.exec();
+
+  return { name, streak: 0, token };
+}
+
+async function increaseDoublerStreak(arena: string, doubler: Doubler) {
+  const { redis } = global as any;
+  const doublerKey = `${arena}:maiden:doubler`;
+  const streakKey = `${doublerKey}_streak`;
+  doubler.streak = Number(await redis.incr(streakKey));
+}

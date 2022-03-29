@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena } from '../api';
-import { adornName, dayRollKey } from './roll';
+import { adornName, dayRollKey, loadDoubler } from './roll';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('highscore')
@@ -29,8 +29,11 @@ export async function execute(interaction: CommandInteraction) {
   const pooperKey = `${arena}:maiden:pooper`;
   const pooper = await redis.get(pooperKey);
   const poopSuite = Number(await redis.get(`${pooperKey}_streak`));
+
+  const doubler = await loadDoubler(arena);
+
   const adorn = (name: string) =>
-    adornName({ name, champ: yesterdayName, hundo, hundoStreak, pooper, poopSuite });
+    adornName({ name, champ: yesterdayName, hundo, hundoStreak, pooper, poopSuite, doubler });
 
   // sort roll counts
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
