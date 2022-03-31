@@ -8,6 +8,8 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('roll')
   .setDescription('Try for the max score on xd100.');
 
+const FAST_EMOJI = '<:sonic:951253135236669470>';
+
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
   const arena = lookupArena(interaction);
@@ -110,6 +112,11 @@ export async function execute(interaction: CommandInteraction) {
   const adorn = (name: string) =>
     adornName({ name, champ, hundo, hundoStreak, pooper: latestPooper, poopSuite, doubler });
 
+  // track speedy rolling with an expiring key
+  const speedKey = `${arena}:speed`;
+  const speedRolling = (await redis.get(speedKey)) === 'FAST';
+  await redis.setex(speedKey, 2, 'FAST');
+
   // announce result
   if (isMaxRoll) {
     await redis.incr(countKey); // increase target number of dice
@@ -118,7 +125,9 @@ export async function execute(interaction: CommandInteraction) {
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     const trend = newDailyHigh === 'higher' ? ' 📈' : newDailyHigh === 'new day' ? ' ☀️' : '';
-    await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}`);
+    const speed = speedRolling ? ` ${FAST_EMOJI}` : '';
+
+    await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
