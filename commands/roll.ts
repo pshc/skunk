@@ -114,8 +114,11 @@ export async function execute(interaction: CommandInteraction) {
 
   // track speedy rolling with an expiring key
   const speedKey = `${arena}:speed`;
-  const speedRolling = (await redis.get(speedKey)) === 'FAST';
-  await redis.setex(speedKey, 2, 'FAST');
+  const speedRolling = Number(await redis.get(speedKey)) || 0;
+  let tx = redis.multi();
+  tx.incr(speedKey);
+  tx.expire(speedKey, 2);
+  await tx.exec();
 
   // announce result
   if (isMaxRoll) {
@@ -125,7 +128,7 @@ export async function execute(interaction: CommandInteraction) {
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     const trend = newDailyHigh === 'higher' ? ' 📈' : newDailyHigh === 'new day' ? ' ☀️' : '';
-    const speed = speedRolling ? ` ${FAST_EMOJI}` : '';
+    const speed = speedRolling ? ` ${multiply(FAST_EMOJI, speedRolling)}` : '';
 
     await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
     // don't let them re-roll consecutively
@@ -241,6 +244,11 @@ export const adornName = (params: AdornParams) => {
 
   return badges.join('');
 };
+
+function multiply(str: string, n: number): string {
+  if (n === 69) return `${str} x69 (nice)`;
+  return n < 20 ? str.repeat(n) : `${str} x${n}`;
+}
 
 const DOUBLES = ['🍒', '✌️', '🫁', '👯', '🤼', '🫂', '🎎', '🙌', '🖇️', '⚔️', '🛠️', '⛓️', '🛍️', '🚻', '👣', '🧦', '🩰', '⚖️', '🧬', '🎵', '♊'];
 
