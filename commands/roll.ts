@@ -9,6 +9,7 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setDescription('Try for the max score on xd100.');
 
 const FAST_EMOJI = '<:sonic:951253135236669470>';
+const FAST_COOLDOWN = 3;
 
 export async function execute(interaction: CommandInteraction) {
   const { redis } = global as any;
@@ -117,7 +118,7 @@ export async function execute(interaction: CommandInteraction) {
   const speedRolling = Number(await redis.get(speedKey)) || 0;
   let tx = redis.multi();
   tx.incr(speedKey);
-  tx.expire(speedKey, 2);
+  tx.expire(speedKey, FAST_COOLDOWN);
   await tx.exec();
 
   // announce result
