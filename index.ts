@@ -3,6 +3,11 @@ import { Client, Collection, CommandInteraction, Intents} from 'discord.js';
 import type { AsyncRedis } from 'async-redis';
 import type { Command } from './api';
 
+require('dotenv').config();
+const {
+  DISCORD_CHANNEL_ID,
+} = process.env;
+
 // provide a global persistent redis store in `global.redis`
 const redis: AsyncRedis = require('async-redis').createClient();
 (global as any).redis = redis;
@@ -39,7 +44,13 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 async function handleCommand(interaction: CommandInteraction) {
-  const { commandName } = interaction;
+  const { channelId, commandName } = interaction;
+  if (DISCORD_CHANNEL_ID && DISCORD_CHANNEL_ID !== channelId) {
+    const content = 'Wrong channel, sorry!';
+    await interaction.reply({ content, ephemeral: true });
+    return;
+  }
+
   const command = commands.get(commandName);
   if (!command) {
     console.warn(`unregistered command ${commandName}`);
@@ -60,7 +71,6 @@ async function handleCommand(interaction: CommandInteraction) {
 }
 
 if (require.main === module) {
-  require('dotenv').config();
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token)
     throw new Error('DISCORD_BOT_TOKEN missing from .env!');
