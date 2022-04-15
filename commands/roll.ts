@@ -228,7 +228,7 @@ export const adornName = (params: AdornParams) => {
     badges.push('👑');
   }
   if (!!hundo && name === hundo) {
-    const token = '🌸';
+    const token = seasonalToken();
     badges.push(multiply(token, hundoStreak));
   }
   if (!!pooper && name === pooper) {
@@ -292,4 +292,47 @@ async function increaseDoublerStreak(arena: string, doubler: Doubler) {
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
   doubler.streak = Number(await redis.incr(streakKey));
+}
+
+function seasonalToken(): string {
+  const today = new Date;
+  const day = today.getDate();
+  const month = today.getMonth() + 1;
+
+  if (month == 1) {
+    if (day <= 7) return '🐣';
+    if (day <= 14) return '🐤';
+    if (day <= 30) return '🐓';
+    return '🍗';
+  } else if (month == 2) {
+    return day <= 14 ? '🍲' : '⛷️';
+  } else if (month == 3 && day <= 23) {
+    return '☕';
+  } else if (month <= 4 && day <= 14) {
+    return '🌸';
+  } else if (month == 4) {
+    // easter weekend 2022
+    if (day <= 17) return '🐇';
+    if (day == 19) return '✝️';
+    if (day <= 25) return '🌱';
+    return '🪴';
+  } else if (month == 5) {
+    if (day <= 7) return '🌳';
+    if (day <= 14) return '🐛';
+    if (day <= 21) return '🦋';
+    return '🦆';
+  } else if (month == 6) {
+    if (day <= 15) return '🌊';
+    return '🏝️';
+  } else if (month == 7) {
+    if (day == 1) return '🍁';
+    return '🌻';
+  } else if (month == 8) {
+    return '🦗';
+  }
+  // TBD...
+  if (month == 12 && day > 25) {
+    return '🥚';
+  }
+  return '⛺';
 }
