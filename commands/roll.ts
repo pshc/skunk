@@ -61,9 +61,9 @@ export async function execute(interaction: CommandInteraction) {
     } else {
       if (name !== hundo) {
         hundo = name;
-        hundoStreak = 0;
+        hundoStreak = 1;
         await redis.set(hundoKey, hundo);
-        await redis.set(hundoStreakKey, '0');
+        await redis.set(hundoStreakKey, '1');
       } else {
         // track consecutive 100s rolled by the same player
         hundoStreak = Number(await redis.incr(hundoStreakKey));
@@ -72,9 +72,9 @@ export async function execute(interaction: CommandInteraction) {
     if (roll === 1) {
       if (name !== latestPooper) {
         latestPooper = name;
-        poopSuite = 0;
+        poopSuite = 1;
         await redis.set(pooperKey, latestPooper);
-        await redis.set(poopSuiteKey, '0');
+        await redis.set(poopSuiteKey, '1');
       } else {
         // track consecutive ones rolled by the same player
         poopSuite = Number(await redis.incr(poopSuiteKey));
@@ -228,19 +228,14 @@ export const adornName = (params: AdornParams) => {
     badges.push('👑');
   }
   if (!!hundo && name === hundo) {
-    for (let i = 0; i <= hundoStreak; i++) {
-      badges.push('🌸');
-    }
+    const token = '🌸';
+    badges.push(multiply(token, hundoStreak));
   }
   if (!!pooper && name === pooper) {
-    for (let i = 0; i <= poopSuite; i++) {
-      badges.push('💩');
-    }
+    badges.push(multiply('💩', poopSuite));
   }
   if (!!doubler.name && name === doubler.name) {
-    for (let i = 0; i <= doubler.streak; i++) {
-      badges.push(doubler.token);
-    }
+    badges.push(multiply(doubler.token, doubler.streak));
   }
 
   return badges.join('');
@@ -285,11 +280,11 @@ async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
 
   const tx = redis.multi();
   tx.set(doublerKey, name);
-  tx.set(streakKey, '0');
+  tx.set(streakKey, '1');
   tx.set(tokenKey, token);
   await tx.exec();
 
-  return { name, streak: 0, token };
+  return { name, streak: 1, token };
 }
 
 async function increaseDoublerStreak(arena: string, doubler: Doubler) {
