@@ -29,7 +29,7 @@ export async function execute(interaction: CommandInteraction) {
   const countKey = `${arena}:maiden:dice_count`;
   let diceCount = Number(await redis.get(countKey));
   if (!diceCount || diceCount < 1) {
-    redis.set(countKey, '1');
+    await redis.set(countKey, '1');
     diceCount = 1;
   }
 
