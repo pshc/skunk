@@ -313,7 +313,7 @@ function seasonalToken(): string {
   } else if (month == 4) {
     // easter weekend 2022
     if (day <= 17) return '🐇';
-    if (day == 19) return '✝️';
+    if (day == 18) return '🍫';
     if (day <= 25) return '🌱';
     return '🪴';
   } else if (month == 5) {
