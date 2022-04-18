@@ -19,8 +19,10 @@ export async function execute(interaction: CommandInteraction) {
   const todayName = (await redis.get(`${today}:name`)) || '<nobody yet>';
 
   const yesterday = dayRollKey(arena, 'yesterday');
-  const yesterdayScore = (await redis.get(`${yesterday}:score`)) || '0';
-  const yesterdayName = (await redis.get(`${yesterday}:name`)) || '<nobody>';
+  const yesterdayHigh = (await redis.get(`${yesterday}:score`)) || '0';
+  const yesterdayLow = (await redis.get(`${yesterday}:low`)) || '♾️';
+  const champ = (await redis.get(`${yesterday}:name`)) || '<nobody>';
+  const brick = (await redis.get(`${yesterday}:low_name`)) || '<nobody>';
 
   const hundoKey = `${arena}:maiden:hundo`;
   const hundo = await redis.get(hundoKey);
@@ -33,7 +35,7 @@ export async function execute(interaction: CommandInteraction) {
   const doubler = await loadDoubler(arena);
 
   const adorn = (name: string) =>
-    adornName({ name, champ: yesterdayName, hundo, hundoStreak, pooper, poopSuite, doubler });
+    adornName({ name, champ, brick, hundo, hundoStreak, pooper, poopSuite, doubler });
 
   // sort roll counts
   const rollCountsById = await redis.hgetall(`${arena}:maiden:roll_counts`);
@@ -52,7 +54,7 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   await interaction.reply(`Today: ${todayScore} by ${adorn(todayName)}
-Yesterday: ${yesterdayScore} by ${adorn(yesterdayName)}
+Yesterday: ${yesterdayHigh} by ${adorn(champ)} / ${yesterdayLow} by ${adorn(brick)}
 All time: ${highScore} by ${adorn(highName)}
 Rolls: ${countDescs.join(', ')}`);
 }

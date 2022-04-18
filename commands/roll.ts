@@ -93,25 +93,40 @@ export async function execute(interaction: CommandInteraction) {
     }
   }
 
-  let newDailyHigh: undefined | 'new day' | 'higher';
+  let dailyTrend: undefined | 'new day' | 'higher' | 'lower';
   {
-    // update daily high score
+    // update daily records
     const today = dayRollKey(arena, 'today');
-    const dailyHighScore = Number(await redis.get(`${today}:score`));
-    if (!dailyHighScore || dailyHighScore < sum) {
-      // expire these keys a month from now
-      const expiry = 60 * 60 * 24 * 30;
-      await redis.setex(`${today}:score`, expiry, sum);
-      await redis.setex(`${today}:name`, expiry, name);
-      newDailyHigh = !!dailyHighScore ? 'higher' : 'new day';
+    const dailyHigh = Number(await redis.get(`${today}:score`));
+    const dailyLow = Number(await redis.get(`${today}:low`));
+    // expire these keys a month from now
+    const expiry = 60 * 60 * 24 * 30;
+
+    if (!dailyHigh || dailyHigh < sum) {
+      const tx = redis.multi();
+      tx.setex(`${today}:score`, expiry, sum);
+      tx.setex(`${today}:name`, expiry, name);
+      await tx.exec();
+      dailyTrend = !!dailyHigh ? 'higher' : 'new day';
+    }
+    if (!dailyLow || dailyLow > sum) {
+      const tx = redis.multi();
+      tx.setex(`${today}:low`, expiry, sum);
+      tx.setex(`${today}:low_name`, expiry, name);
+      await tx.exec();
+      if (!dailyTrend) {
+        dailyTrend = 'lower';
+      }
     }
   }
 
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
   const champ = await redis.get(`${yesterday}:name`);
+  // award brick to yesterday's low roller
+  const brick = await redis.get(`${yesterday}:low_name`);
   const adorn = (name: string) =>
-    adornName({ name, champ, hundo, hundoStreak, pooper: latestPooper, poopSuite, doubler });
+    adornName({ name, champ, brick, hundo, hundoStreak, pooper: latestPooper, poopSuite, doubler });
 
   // track speedy rolling with an expiring key
   const speedKey = `${arena}:speed`;
@@ -128,7 +143,7 @@ export async function execute(interaction: CommandInteraction) {
     await redis.del(prevKey);
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
-    const trend = newDailyHigh === 'higher' ? ' 📈' : newDailyHigh === 'new day' ? ' ☀️' : '';
+    const trend = dailyTrendMarker(dailyTrend);
     const speed = speedRolling ? ` ${multiply(FAST_EMOJI, speedRolling)}` : '';
 
     await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
@@ -214,6 +229,7 @@ export function dayRollKey(arena: string, day: 'today' | 'yesterday'): string {
 interface AdornParams {
   name: string;
   champ: string;
+  brick: string;
   hundo: string;
   hundoStreak: number;
   pooper: string;
@@ -222,7 +238,7 @@ interface AdornParams {
 }
 
 export const adornName = (params: AdornParams) => {
-  const { name, champ, hundo, hundoStreak, pooper, poopSuite, doubler } = params;
+  const { name, champ, brick, hundo, hundoStreak, pooper, poopSuite, doubler } = params;
   const badges = [name];
   if (!!champ && name === champ) {
     badges.push('👑');
@@ -236,6 +252,9 @@ export const adornName = (params: AdornParams) => {
   }
   if (!!doubler.name && name === doubler.name) {
     badges.push(multiply(doubler.token, doubler.streak));
+  }
+  if (!!brick && name === brick) {
+    badges.push('🧱');
   }
 
   return badges.join('');
@@ -335,4 +354,13 @@ function seasonalToken(): string {
     return '🥚';
   }
   return '⛺';
+}
+
+function dailyTrendMarker(daily: 'new day' | 'higher' | 'lower' | undefined): string {
+  switch (daily) {
+    case 'new day': return ' ☀️';
+    case 'higher': return ' 📈';
+    case 'lower': return ' 📉';
+    default: return '';
+  }
 }
