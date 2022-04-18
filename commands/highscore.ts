@@ -15,8 +15,10 @@ export async function execute(interaction: CommandInteraction) {
   const highName = await redis.get(`${arena}:maiden:high_name`);
 
   const today = dayRollKey(arena, 'today');
-  const todayScore = (await redis.get(`${today}:score`)) || '0';
-  const todayName = (await redis.get(`${today}:name`)) || '<nobody yet>';
+  const todayHigh = (await redis.get(`${today}:score`)) || '0';
+  const todayLow = (await redis.get(`${today}:low`)) || '0';
+  const todayHighName = (await redis.get(`${today}:name`)) || '<nobody yet>';
+  const todayLowName = (await redis.get(`${today}:low_name`)) || '<nobody yet>';
 
   const yesterday = dayRollKey(arena, 'yesterday');
   const yesterdayHigh = (await redis.get(`${yesterday}:score`)) || '0';
@@ -53,7 +55,7 @@ export async function execute(interaction: CommandInteraction) {
     countDescs.push(`Total: ${sum}`);
   }
 
-  await interaction.reply(`Today: ${todayScore} by ${adorn(todayName)}
+  await interaction.reply(`Today: ${todayHigh} by ${adorn(todayHighName)} / ${todayLow} by ${adorn(todayLowName)}
 Yesterday: ${yesterdayHigh} by ${adorn(champ)} / ${yesterdayLow} by ${adorn(brick)}
 All time: ${highScore} by ${adorn(highName)}
 Rolls: ${countDescs.join(', ')}`);
