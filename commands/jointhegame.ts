@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction, Snowflake } from 'discord.js';
-import type { Arena, PlayerId } from '../api';
+import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena } from '../api';
 
 const INITIAL_SCORE = 100;
@@ -16,10 +16,10 @@ export async function execute(interaction: CommandInteraction) {
   const arena = lookupArena(interaction);
   const { member, options, user } = interaction;
   const playerName = options.getString('name') || (member as any).nickname || user.username;
-  await joinTheGame(arena, user.id, playerName, interaction);
+  await joinTheGame(arena, user.id, playerName, interaction.reply);
 }
 
-export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: string, interaction: CommandInteraction): Promise<PlayerId> {
+export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: string, reply: Reply): Promise<PlayerId> {
   const { redis } = global as any;
 
   playerName = sanifyName(playerName);
@@ -34,7 +34,6 @@ export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: s
   assert(!Number(existingOwner), "Name already taken; please select another.");
 
   // okay, try to add them
-  await interaction.deferReply();
   try {
     console.log(`"${playerName}" (${userId}) is joining the game.`);
     const playerId = await redis.incr(`${arena}:player_count`);
@@ -45,10 +44,10 @@ export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: s
     tx.hsetnx(`${arena}:name_lookup`, playerName.toLowerCase(), playerId);
     tx.hsetnx(`${arena}:scores`, playerId, INITIAL_SCORE);
     await tx.exec();
-    await interaction.editReply(`Welcome to the game, **${playerName}**!`);
+    await reply(`Welcome to the game, **${playerName}**!`);
     return playerId;
   } catch (e) {
-    await interaction.editReply("Error joining!");
+    await reply("Error joining!");
     throw e;
   }
 }
