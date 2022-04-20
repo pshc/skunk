@@ -1,7 +1,9 @@
+import { strict as assert } from 'assert';
 import { promises as fsAsync } from 'fs';
 import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
+import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -12,18 +14,19 @@ const FAST_EMOJI = '<:sonic:951253135236669470>';
 const FAST_COOLDOWN = 3;
 
 export async function execute(interaction: CommandInteraction) {
-  const { redis } = global as any;
   const arena = lookupArena(interaction);
   const playerId = await lookupPlayerId(arena, interaction);
+  await roll(arena, playerId, interaction.reply);
+}
+
+export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Promise<number[]> {
+  const { redis } = global as any;
   const name = (await redis.hget(`${arena}:names`, playerId)) || '???';
 
   // prevent consecutive rolls
   const prevKey = `${arena}:maiden:previous_roller`;
   const prevRoller = await redis.get(prevKey);
-  if (prevRoller === playerId) {
-    await interaction.reply({ content: 'The dice are hot!', ephemeral: true });
-    return;
-  }
+  assert(prevRoller !== playerId, 'The dice are hot!');
 
   // load the game state
   const countKey = `${arena}:maiden:dice_count`;
@@ -139,14 +142,14 @@ export async function execute(interaction: CommandInteraction) {
   // announce result
   if (isMaxRoll) {
     await redis.incr(countKey); // increase target number of dice
-    await interaction.reply(`${adorn(name)} MAX ROLL: \`${rolls}\` Result: ${sum}`);
+    await reply(`${adorn(name)} MAX ROLL: \`${rolls}\` Result: ${sum}`);
     await redis.del(prevKey);
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     const trend = dailyTrendMarker(dailyTrend);
     const speed = speedRolling ? ` ${multiply(FAST_EMOJI, speedRolling)}` : '';
 
-    await interaction.reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
+    await reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
@@ -172,6 +175,8 @@ export async function execute(interaction: CommandInteraction) {
       await fsAsync.appendFile(csv, `${rolls.join(',')},${now},${name}\n`);
     })(),
   ]);
+
+  return rolls;
 }
 
 function chooseOne<T>(options: T[]): T {
