@@ -12,20 +12,20 @@
   "author": "uweng",
   "license": "ISC",
   "dependencies": {
-    "@discordjs/builders": "0.5",
-    "@discordjs/rest": "^0.1.0-canary.0",
+    "@discordjs/builders": "0.13",
+    "@discordjs/rest": "0.4",
     "async-redis": "2.0",
-    "discord-api-types": "0.22",
-    "discord.js": "13.1",
-    "dotenv": "10.0"
+    "discord-api-types": "0.31",
+    "discord.js": "13",
+    "dotenv": "16"
   },
   "devDependencies": {
-    "@ava/typescript": "2",
+    "@ava/typescript": "3",
     "@types/async-redis": "1",
-    "@typescript-eslint/eslint-plugin": "4",
-    "@typescript-eslint/parser": "4",
-    "ava": "3",
-    "eslint": "7",
+    "@typescript-eslint/eslint-plugin": "5",
+    "@typescript-eslint/parser": "5",
+    "ava": "4",
+    "eslint": "8",
     "typescript": "4"
   },
   "prettier": {

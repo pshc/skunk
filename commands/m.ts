@@ -35,8 +35,10 @@ data.addSubcommand(cmd =>
 
 function cardinalDirections(dir: SlashCommandStringOption): SlashCommandStringOption {
   dir.setName("direction").setDescription("Direction").setRequired(true)
-    .addChoice("north", "n").addChoice("south", "s").addChoice("east", "e")
-    .addChoice("west", "w").addChoice("up", "u").addChoice("down", "d");
+    .addChoices(
+      {name: "north", value: "n"}, {name: "south", value: "s"}, {name: "east", value: "e"},
+      {name: "west", value: "w"}, {name: "up", value: "u"}, {name: "down", value: "d"},
+    );
   return dir;
 }
 
