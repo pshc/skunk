@@ -16,7 +16,7 @@ const FAST_COOLDOWN = 3;
 export async function execute(interaction: CommandInteraction) {
   const arena = lookupArena(interaction);
   const playerId = await lookupPlayerId(arena, interaction);
-  await roll(arena, playerId, interaction.reply);
+  await roll(arena, playerId, msg => interaction.reply(msg));
 }
 
 export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Promise<number[]> {

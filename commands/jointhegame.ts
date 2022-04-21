@@ -16,7 +16,7 @@ export async function execute(interaction: CommandInteraction) {
   const arena = lookupArena(interaction);
   const { member, options, user } = interaction;
   const playerName = options.getString('name') || (member as any).nickname || user.username;
-  await joinTheGame(arena, user.id, playerName, interaction.reply);
+  await joinTheGame(arena, user.id, playerName, msg => interaction.reply(msg));
 }
 
 export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: string, reply: Reply): Promise<PlayerId> {
