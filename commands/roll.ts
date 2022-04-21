@@ -10,7 +10,7 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('roll')
   .setDescription('Try for the max score on xd100.');
 
-const FAST_EMOJI = '<:sonic:951253135236669470>';
+// set FAST_EMOJI in .env
 const FAST_COOLDOWN = 3;
 
 export async function execute(interaction: CommandInteraction) {
@@ -147,7 +147,7 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     const trend = dailyTrendMarker(dailyTrend);
-    const speed = speedRolling ? ` ${multiply(FAST_EMOJI, speedRolling)}` : '';
+    const speed = speedRolling ? ` ${multiply(process.env.FAST_EMOJI || '💨', speedRolling)}` : '';
 
     await reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
     // don't let them re-roll consecutively
