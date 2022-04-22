@@ -1,5 +1,5 @@
 import type { SlashCommandBuilder } from "@discordjs/builders";
-import type { CommandInteraction, InteractionReplyOptions, MessagePayload } from 'discord.js';
+import type { CommandInteraction, Interaction, InteractionReplyOptions, MessagePayload } from 'discord.js';
 
 export interface Command {
   data: SlashCommandBuilder,
@@ -13,7 +13,7 @@ export type Arena = string;
 export type PlayerId = string;
 export type ItemId = string;
 
-export function lookupArena(interaction: CommandInteraction): Arena {
+export function lookupArena(interaction: Interaction): Arena {
   // TODO: generate a new arena per discord server
   // until then, limit ourself to one discord server
   if (interaction.guildId !== process.env.DISCORD_GUILD_ID) {
@@ -23,11 +23,11 @@ export function lookupArena(interaction: CommandInteraction): Arena {
   return 'arena:2';
 }
 
-export async function lookupPlayerId(arena: Arena, interaction: CommandInteraction): Promise<PlayerId> {
+export async function lookupPlayerId(arena: Arena, interaction: Interaction): Promise<PlayerId> {
   const { redis } = global as any;
   const playerId = await redis.hget(`${arena}:discord_users`, interaction.user.id);
   if (!playerId) {
-    throw new Error('Not playing');
+    throw new Error('Not playing; please /jointhegame first');
   }
   return playerId;
 }
