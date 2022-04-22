@@ -1,7 +1,8 @@
 import { readdirSync } from 'fs';
-import { Client, Collection, CommandInteraction, Intents} from 'discord.js';
+import { Client, Collection, CommandInteraction, Intents } from 'discord.js';
 import type { AsyncRedis } from 'async-redis';
 import type { Command } from './api';
+import { handleButton } from './buttons';
 
 require('dotenv').config();
 const {
@@ -40,6 +41,8 @@ client.on('invalidRequestWarning', ({count, remainingTime}) => {
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isCommand()) {
     await handleCommand(interaction);
+  } else if (interaction.isButton()) {
+    await handleButton(interaction);
   }
 });
 
