@@ -5,6 +5,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
+import { chooseOne } from '../utils';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('roll')
@@ -179,9 +180,6 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
   return rolls;
 }
 
-function chooseOne<T>(options: T[]): T {
-  return options[randomInt(options.length)];
-}
 function twoSpirit(a: number, b: number, sum: number): string {
   switch (true) {
     case a === 69 && b === 69:
