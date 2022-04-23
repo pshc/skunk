@@ -7,3 +7,7 @@ export function chooseOne<T>(options: T[]): T {
 export function possessive(str: string): string {
   return str.endsWith('s') ? str + "'" : str + "'s";
 }
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

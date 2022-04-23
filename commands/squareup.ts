@@ -4,6 +4,7 @@ import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, Messa
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { chooseOne, possessive } from '../utils';
+import { Duelist, duelMessage } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('squareup')
@@ -20,6 +21,8 @@ export async function execute(interaction: CommandInteraction) {
 export const CHALLENGE_MSG_CACHE: Map<number, Message> = new Map();
 
 const CHALLENGE_CACHE_EXPIRY = 6 * 60 * 1000;
+const FIGHT_START_DELAY = 5000;
+let PENDING_FIGHT: ReturnType<typeof setTimeout> | undefined;
 
 type EitherInteraction = CommandInteraction | ButtonInteraction;
 
@@ -91,12 +94,60 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
         }
       }
 
-      // TODO start the fight
+      // give everyone a second to prepare (or back out)
+      const hp = 20;
+      const hasChosen = false;
+      const defender = { id: defenderId, name: defenderName, key: defenderKey, hp, hasChosen };
+      const challenger = { id: playerId, name, key: challengerKey, hp, hasChosen };
+      // prevent simultaneous `startFight` calls by saving and clearing the timeout
+      if (PENDING_FIGHT) {
+        clearTimeout(PENDING_FIGHT);
+      }
+      PENDING_FIGHT = setTimeout(async () => {
+        PENDING_FIGHT = undefined;
+        try {
+          await startFight(arena, nextDuel, defender, challenger, interaction);
+        } catch (e) {
+          console.error(`startFight: ${e}`);
+        }
+      }, FIGHT_START_DELAY);
 
     } else {
       await interaction.reply({ content: 'Sorry, the challenge was taken or abandoned!', ephemeral: true });
     }
   }
+}
+
+async function startFight(arena: Arena, duelId: number, defender: Duelist, challenger: Duelist, interaction: EitherInteraction) {
+  const { redis } = global as any;
+  // DRY
+  const duelCountKey = `${arena}:duel:count`;
+  const activeKey = `${arena}:duel:active`;
+  const roundKey = `${arena}:duel:round`;
+
+  // but first, check that the fight is on as expected
+  const nextDuel = Number(await redis.get(duelCountKey));
+  assert(nextDuel === duelId, 'wrong duel id');
+  assert(defender.id === await redis.get(defender.key), 'wrong defender');
+  assert(challenger.id === await redis.get(challenger.key), 'wrong challenger');
+
+  // activate the duel
+  if (!await redis.setnx(activeKey, duelId)) {
+    console.warn(`duel ${duelId} was already active?!`);
+    return;
+  }
+  // set up initial duel state
+  const round = 1;
+  const tx = redis.multi();
+  tx.incr(duelCountKey);
+  tx.set(roundKey, round);
+  tx.set(`${defender.key}:hp`, defender.hp);
+  tx.set(`${challenger.key}:hp`, challenger.hp);
+  await tx.exec();
+
+  // use a follow-up message to print the starting state
+  const msg = duelMessage(arena, duelId, round, defender, challenger);
+  await interaction.followUp(msg);
 }
 
 function expireChallengeMessage(duelId: number, messageId: string) {
