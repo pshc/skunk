@@ -30,7 +30,8 @@ export async function execute(interaction: CommandInteraction) {
     const playerName = await redis.hget(`${arena}:names`, playerId);
     console.log(`"${playerName}" (${user.id}) is quitting.`);
     const tx = redis.multi();
-    tx.hdel(`${arena}:discord_users`, user.id, playerId);
+    tx.hdel(`${arena}:discord_users`, user.id);
+    tx.hdel(`${arena}:mentions`, playerId);
     tx.hdel(`${arena}:names`, playerId);
     tx.hdel(`${arena}:name_lookup`, playerName.toLowerCase());
     tx.hdel(`${arena}:scores`, playerId);

@@ -40,6 +40,7 @@ export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: s
     const tx = redis.multi();
     // TODO we should really use WATCH to fail properly on conflict
     tx.hsetnx(`${arena}:discord_users`, userId, playerId);
+    tx.hsetnx(`${arena}:mentions`, playerId, userId);
     tx.hsetnx(`${arena}:names`, playerId, playerName);
     tx.hsetnx(`${arena}:name_lookup`, playerName.toLowerCase(), playerId);
     tx.hsetnx(`${arena}:scores`, playerId, INITIAL_SCORE);
