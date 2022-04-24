@@ -4,7 +4,7 @@ import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, Messa
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { chooseOne, possessive } from '../utils';
-import { Duelist, duelMessage, cacheDuelMessage } from './duel';
+import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('squareup')
@@ -95,7 +95,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
       }
 
       // give everyone a second to prepare (or back out)
-      const hp = 20;
+      const hp = STARTING_HP;
       const charge = 0;
       const hasChosen = false;
       const defender = { id: defenderId, name: defenderName, key: defenderKey, hp, charge, hasChosen };

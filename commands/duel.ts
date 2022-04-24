@@ -8,6 +8,13 @@ import { possessive, sleep } from '../utils';
 const NEXT_ROUND_DELAY = 4000;
 const MAX_CHARGE = 3;
 
+// damage tiers
+const HIGH = 9;
+const MID = 5;
+const LOW = 3;
+
+export const STARTING_HP = 25;
+
 export interface Duelist {
   id: PlayerId,
   key: string, // redis key
@@ -401,10 +408,6 @@ interface Outcome {
   story: string[],
   state: 'resolved' | 'end',
 }
-
-const HIGH = 9;
-const MID = 3;
-const LOW = 1;
 
 function conflict(defender: Duelist, challenger: Duelist): Outcome {
   const story = [];
