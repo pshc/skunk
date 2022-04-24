@@ -9,9 +9,9 @@ const NEXT_ROUND_DELAY = 4000;
 const MAX_CHARGE = 3;
 
 // damage tiers
-const HIGH = 9;
-const MID = 5;
-const LOW = 3;
+const LOW = 2;
+const MID = 4;
+const HIGH = 10;
 
 export const STARTING_HP = 25;
 
