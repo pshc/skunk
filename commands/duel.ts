@@ -361,7 +361,7 @@ ${challenger.name} \`[${chaHp} HP]\`
 
   // now post the story
   if (story.length) {
-    const content = '\n🛡️ COMBAT 🛡️\n' + story.join('\n');
+    const content = story.join('\n');
     if (cachedMessage) {
       try {
         await cachedMessage.reply(content);
