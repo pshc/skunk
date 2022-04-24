@@ -15,7 +15,7 @@ export async function handleButton(interaction: ButtonInteraction) {
       console.error(error);
     }
     const content = (error && error.message) || 'Oops, something went wrong!';
-    await interaction.followUp({ content, ephemeral: true });
+    await interaction.reply({ content, ephemeral: true });
   }
 }
 
