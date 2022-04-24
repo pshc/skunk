@@ -143,10 +143,12 @@ async function startFight(arena: Arena, duelId: number, defender: Duelist, chall
   tx.set(roundKey, round);
   tx.set(`${defender.key}:hp`, defender.hp);
   tx.set(`${challenger.key}:hp`, challenger.hp);
+  tx.del(`${defender.key}:action`);
+  tx.del(`${challenger.key}:action`);
   await tx.exec();
 
   // use a follow-up message to print the starting state
-  const msg = duelMessage(arena, duelId, round, defender, challenger);
+  const msg = duelMessage(arena, duelId, round, defender, challenger, 'picking', []);
   await interaction.followUp(msg);
 }
 
