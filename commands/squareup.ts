@@ -4,7 +4,7 @@ import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, Messa
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { chooseOne, possessive } from '../utils';
-import { Duelist, duelMessage } from './duel';
+import { Duelist, duelMessage, cacheDuelMessage } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('squareup')
@@ -20,8 +20,8 @@ export async function execute(interaction: CommandInteraction) {
 // Ideally we would cache the message ID in redis so that we could rehydrate properly across restarts...
 export const CHALLENGE_MSG_CACHE: Map<number, Message> = new Map();
 
-const CHALLENGE_CACHE_EXPIRY = 6 * 60 * 1000;
-const FIGHT_START_DELAY = 5000;
+const CHALLENGE_CACHE_EXPIRY = 6 * 60 * 60 * 1000;
+const FIGHT_START_DELAY = 4000;
 let PENDING_FIGHT: ReturnType<typeof setTimeout> | undefined;
 
 type EitherInteraction = CommandInteraction | ButtonInteraction;
@@ -152,7 +152,12 @@ async function startFight(arena: Arena, duelId: number, defender: Duelist, chall
 
   // use a follow-up message to print the starting state
   const msg = duelMessage(arena, duelId, round, defender, challenger, 'picking', []);
-  await interaction.followUp(msg);
+  const reply = await interaction.followUp({ fetchReply: true, ...msg });
+  if (reply instanceof Message) {
+    cacheDuelMessage(reply, arena, duelId, round);
+  } else {
+    console.warn('got non-Message reply back');
+  }
 }
 
 function expireChallengeMessage(duelId: number, messageId: string) {

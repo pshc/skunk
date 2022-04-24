@@ -34,6 +34,7 @@ export async function execute(interaction: CommandInteraction) {
   await showCurrentDuel(arena, interaction);
 }
 
+/// Re-render the duel state display from scratch.
 export async function showCurrentDuel(arena: Arena, interaction: CommandInteraction) {
   const { redis } = global as any;
   const namesKey = `${arena}:names`;
@@ -71,13 +72,16 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const challenger = await fetchDuelist(challengerKey);
 
   const msg = duelMessage(arena, Number(duelId), round, defender, challenger, 'picking', []);
-  await interaction.reply(msg);
+  // typescript why?
+  const reply = <any>await interaction.reply({ fetchReply: true, ...msg });
+  cacheDuelMessage(reply, arena, duelId, round);
 }
 
-enum Act { AA, AD, DA, DD, AW, DW, WS, WW }
+enum Act { AA, AD, DA, DD, AW, DW, WS, WW, SA, SD, SW, SS }
 
 type ActString = keyof typeof Act;
 
+/// Generates current duel round and status in discord data structures.
 export function duelMessage(
   arena: Arena,
   duelId: number,
@@ -88,24 +92,49 @@ export function duelMessage(
   story: string[],
 ): InteractionReplyOptions {
 
-  let actions: ActionButton[] = [];
+  const components = [
+    new MessageActionRow()
+      .addComponents(
+        new MessageButton()
+          .setCustomId(`${arena}:duel:${duelId}:round:${round}:choose`)
+          .setEmoji(state === 'end' ? '💀' : '📝')
+          .setStyle('SECONDARY')
+          .setDisabled(state !== 'picking')
+      )
+  ];
 
-  if (state === 'picking') {
-    actions = [
-      {id: 'AA', label: 'attack x2'},
-      {id: 'AD', label: 'atk, def'},
-      {id: 'DA', label: 'def, atk'},
-      {id: 'DD', label: 'defend x2'},
-      {id: 'AW', label: 'atk, windup'},
-      {id: 'DW', label: 'def, windup'},
-      {id: 'WS', label: 'windup, special'},
-      {id: 'WW', label: 'windup x2'},
-    ];
+  const content = `>>> __Round ${round}__
+\`${defender.name}${'🔥'.repeat(defender.charge)} [${defender.hp} HP]\` ${checkmark(defender.hasChosen)}
+\`${challenger.name}${'🔥'.repeat(challenger.charge)} [${challenger.hp} HP]\` ${checkmark(challenger.hasChosen)}
+${story.length ? '\n🛡️ COMBAT 🛡️\n' + story.join('\n') : ''}`;
+
+  return { content, components };
+}
+
+// Shows a private action list to the duelists.
+async function actionPalette(roundPrefix: string, duelist: Duelist, interaction: ButtonInteraction) {
+  const actions: ActionButton[] = [
+    {id: 'AA', label: 'attack x2'},
+    {id: 'AD', label: 'atk, def'},
+    {id: 'DA', label: 'def, atk'},
+    {id: 'DD', label: 'defend x2'},
+    {id: 'AW', label: 'atk, windup'},
+    {id: 'DW', label: 'def, windup'},
+    {id: 'WS', label: 'windup, special'},
+    {id: 'WW', label: 'windup x2'},
+  ];
+  if (duelist.charge > 0) {
+    actions.push({id: 'SA', label: 'spec, atk'});
+    actions.push({id: 'SD', label: 'spec, def'});
+    actions.push({id: 'SW', label: 'spec, windup'});
+  }
+  if (duelist.charge > 1) {
+    actions.push({id: 'SS', label: 'special x2'});
   }
 
   const buttonize = (act: ActionButton) => (
     new MessageButton()
-      .setCustomId(`${arena}:duel:${duelId}:round:${round}:${act.id}`)
+      .setCustomId(`${roundPrefix}:${act.id}`)
       .setLabel(act.label)
       .setStyle('SECONDARY')
   );
@@ -127,15 +156,11 @@ export function duelMessage(
     }
   }
 
-  const content = `>>> __Round ${round}__
-\`${defender.name}${'🔥'.repeat(defender.charge)} [${defender.hp} HP]\` ${checkmark(defender.hasChosen)}
-\`${challenger.name}${'🔥'.repeat(challenger.charge)} [${challenger.hp} HP]\` ${checkmark(challenger.hasChosen)}
-
-${story.length ? story.join('\n') : 'Select your next two moves:'}`;
-
-  return { content, components };
+  const content = 'Choose your next two actions:';
+  await interaction.reply({ content, components, ephemeral: true });
 }
 
+/// Handles duel button callbacks.
 export async function chooseAction(
   arena: Arena,
   playerId: PlayerId,
@@ -156,9 +181,8 @@ export async function chooseAction(
   // acquire lock before accessing state (in case the other player acts at the same time)
   const roundLock = `${arena}:duel:round:${round}:lock`;
   if (!await redis.setnx(roundLock, playerId)) {
-    await interaction.deferReply();
     // try one more time
-    await sleep(3);
+    await sleep(1);
     if (!await redis.setnx(roundLock, playerId)) {
       await interaction.reply({ content: 'Locking bug, please try again.', ephemeral: true });
       return;
@@ -210,6 +234,13 @@ export async function chooseAction(
     challenger = await fetchDuelist(challengerKey);
     // end DRY
 
+    // show the action palette on request
+    if (act === 'choose') {
+      const duelist = player === 'defender' ? defender : challenger;
+      await actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
+      return;
+    }
+
     if (player === 'defender') {
       // validate the action enum str
       // TODO check if defender may do this right now
@@ -239,22 +270,52 @@ export async function chooseAction(
       story = outcome.story;
       state = outcome.state;
       // apply damage and set up for next round if necessary
-      const tx = redis.multi()
-        .decrby(`${defenderKey}:hp`, outcome.damage.defender)
-        .decrby(`${challengerKey}:hp`, outcome.damage.challenger)
-        .set(`${defenderKey}:charge`, outcome.charge.defender)
-        .set(`${challengerKey}:charge`, outcome.charge.challenger)
-        .del(`${defenderKey}:action`)
-        .del(`${challengerKey}:action`);
+      const tx = redis.multi();
+      tx.del(`${defenderKey}:action`, `${challengerKey}:action`);
+      tx.decrby(`${defenderKey}:hp`, outcome.damage.defender);
+      tx.decrby(`${challengerKey}:hp`, outcome.damage.challenger);
+      tx.set(`${defenderKey}:charge`, outcome.charge.defender);
+      tx.set(`${challengerKey}:charge`, outcome.charge.challenger);
       if (state !== 'end') {
         tx.incr(roundKey);
       }
       await tx.exec();
+
+      // game over?
+      if (state === 'end') {
+        const channel = interaction.channel;
+        if (channel) {
+          // store result for printing momentarily
+          defender.hp = Number(await redis.get(`${defenderKey}:hp`));
+          challenger.hp = Number(await redis.get(`${challengerKey}:hp`));
+          let final = `${defender.name} \`[${defender.hp} HP]\`
+${challenger.name} \`[${challenger.hp} HP]\`
+
+`;
+          if (defender.hp <= 0 && challenger.hp <= 0) {
+            final += '**Draw.**';
+          } else if (challenger.hp <= 0) {
+            final += `**${defender.name} is victorious!**`;
+          } else if (defender.hp <= 0) {
+            final += `**${challenger.name} is victorious!**`;
+          } else {
+            final += 'Duel ended mysteriously?';
+          }
+          // print it soon
+          setTimeout(() => channel.send(final), NEXT_ROUND_DELAY / 2);
+        }
+
+        // and reset everything
+        await redis.del(
+          activeKey, roundKey,
+          defenderKey, `${defenderKey}:hp`, `${defenderKey}:charge`,
+          challengerKey, `${challengerKey}:hp`, `${defenderKey}:charge`,
+        );
+      }
       // clear checkmarks after battle resolution
       defender.hasChosen = undefined;
       challenger.hasChosen = undefined;
     } else {
-      story.push('Select your next two moves:');
       state = 'picking';
     }
 
@@ -267,9 +328,19 @@ export async function chooseAction(
 
   // update the combat message
   const msg = duelMessage(arena, duelId, round, defender, challenger, state, story);
-  await interaction.update(msg);
-
-  // todo check win condition
+  const cachedMessage = ROUND_MSG_CACHE.get(`${arena}:${duelId}:${round}`);
+  if (cachedMessage) {
+    await cachedMessage.edit(msg);
+  } else if (interaction.channel) {
+    const reply = await interaction.channel.send({ fetchReply: true, ...msg });
+    cacheDuelMessage(reply, arena, duelId, round);
+  }
+  // acknowledge button press
+  try {
+    await interaction.update({ content: 'Selected.', components: [] });
+  } catch (e) {
+    console.warn('while trying to update button palette', e);
+  }
 
   if (state === 'resolved') {
     await sleep(NEXT_ROUND_DELAY);
@@ -284,18 +355,17 @@ export async function chooseAction(
     challenger.charge = Number(await redis.get(`${challengerKey}:charge`));
     // send it
     const msg = duelMessage(arena, duelId, round + 1, defender, challenger, 'picking', []);
+    let reply;
     if (interaction.channel) {
-      await interaction.channel.send(msg);
+      reply = await interaction.channel.send({ fetchReply: true, ...msg });
     } else {
-      await interaction.followUp(msg);
+      reply = await interaction.followUp({ fetchReply: true, ...msg});
     }
-  } else if (state === 'end') {
-    // reset everything
-    await redis.del(
-      activeKey, roundKey,
-      defenderKey, `${defenderKey}:hp`, `${defenderKey}:charge`, `${defenderKey}:action`,
-      challengerKey, `${challengerKey}:hp`, `${defenderKey}:charge`, `${challengerKey}:action`,
-    );
+    if (reply instanceof Message) {
+      cacheDuelMessage(reply, arena, duelId, round + 1);
+    } else {
+      console.warn("didn't get message back");
+    }
   }
 }
 
@@ -430,30 +500,14 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
       damage.challenger = duo[1].dmg;
       // anyone go to 0 HP?
       if (!defenderAlive() || !challengerAlive()) {
-        story.push('');
-        if (defenderAlive()) {
-          story.push(`**${defender.name} is victorious!**`);
-        } else if (challengerAlive()) {
-          story.push(`**${challenger.name} is victorious!**`);
-        } else {
-          story.push('**Draw.**');
-        }
         state = 'end';
         break;
-      }
-      if (i == 0) {
+      } else if (i == 0) {
         story.push('... and ...');
       }
     }
   } else {
     state = 'end';
-    if (defenderAlive()) {
-      story.push(`**${defender.name} survives.**`);
-    } else if (challengerAlive()) {
-      story.push(`**${challenger.name} survives.**`);
-    } else {
-      story.push('**No survivors.**');
-    }
     duo[0].charge = 0;
     duo[1].charge = 0;
   }
@@ -464,6 +518,30 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
     story,
     state,
   };
+}
+
+// simple cache for the latest `Message` for each round of fighting,
+// at least until I figure out where to look up discord messages...
+export const ROUND_MSG_CACHE: Map<string, Message> = new Map();
+const ROUND_CACHE_EXPIRY = 10 * 60 * 1000;
+
+export function cacheDuelMessage(message: Message, arena: Arena, duelId: number, round: number) {
+  if (!(message instanceof Message)) {
+    console.error('fetchReply returned something unexpected');
+    return;
+  }
+  // save this message to update it later
+  const key = `${arena}:${duelId}:${round}`;
+  ROUND_MSG_CACHE.set(key, message);
+  // expire it later to avoid leaking memory
+  setTimeout(expireDuelMessage.bind(null, key, message.id), ROUND_CACHE_EXPIRY);
+}
+
+function expireDuelMessage(key: string, messageId: string) {
+  const cached = ROUND_MSG_CACHE.get(key);
+  if (cached && cached.id === messageId) {
+    ROUND_MSG_CACHE.delete(key);
+  }
 }
 
 function checkmark(checked: boolean | undefined): string {
