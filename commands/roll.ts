@@ -26,7 +26,7 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
   // prevent consecutive rolls
   const prevKey = `${arena}:maiden:previous_roller`;
   const prevRoller = await redis.get(prevKey);
-  if (prevRoller !== playerId) {
+  if (prevRoller === playerId) {
     throw new Sorry('The dice are hot!');
   }
 
