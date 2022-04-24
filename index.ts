@@ -3,6 +3,7 @@ import { Client, Collection, CommandInteraction, Intents } from 'discord.js';
 import type { AsyncRedis } from 'async-redis';
 import type { Command } from './api';
 import { handleButton } from './buttons';
+import { Sorry } from './utils';
 
 require('dotenv').config();
 const {
@@ -63,7 +64,9 @@ async function handleCommand(interaction: CommandInteraction) {
   try {
     await command.execute(interaction);
   } catch (error: any) {
-    console.error(commandName, error);
+    if (!(error instanceof Sorry)) {
+      console.error(commandName, error);
+    }
     if (error && error['code'] === 10062) {
       console.error('Another instance of the bot is already running?');
       process.exit(1);

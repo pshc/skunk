@@ -1,11 +1,10 @@
-import { strict as assert } from 'assert';
 import { promises as fsAsync } from 'fs';
 import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
-import { chooseOne } from '../utils';
+import { Sorry, chooseOne } from '../utils';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('roll')
@@ -27,7 +26,9 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
   // prevent consecutive rolls
   const prevKey = `${arena}:maiden:previous_roller`;
   const prevRoller = await redis.get(prevKey);
-  assert(prevRoller !== playerId, 'The dice are hot!');
+  if (prevRoller !== playerId) {
+    throw new Sorry('The dice are hot!');
+  }
 
   // load the game state
   const countKey = `${arena}:maiden:dice_count`;

@@ -5,12 +5,15 @@ import { ButtonInteraction } from 'discord.js';
 import { squareUp } from './commands/squareup';
 import { chooseAction } from './commands/duel';
 import { lookupPlayerId } from './api';
+import { Sorry } from './utils';
 
 export async function handleButton(interaction: ButtonInteraction) {
   try {
     await dispatch(interaction);
   } catch (error: any) {
-    console.error(error);
+    if (!(error instanceof Sorry)) {
+      console.error(error);
+    }
     const content = (error && error.message) || 'Oops, something went wrong!';
     await interaction.followUp({ content, ephemeral: true });
   }
