@@ -118,7 +118,7 @@ export function duelMessage(
 }
 
 // Shows a private action list to the duelists.
-function actionPalette(roundPrefix: string, duelist: Duelist, interaction: ButtonInteraction) {
+function actionPalette(roundPrefix: string, duelist: Duelist) {
   const actions: ActionButton[] = [
     {id: 'AA', label: 'attack x2'},
     {id: 'AD', label: 'atk, def'},
@@ -256,7 +256,7 @@ export async function chooseAction(
     if (act === 'choose') {
       await releaseLock();
       const duelist = player === 'defender' ? defender : challenger;
-      const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
+      const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist);
       await interaction.reply({ ephemeral: true, ...msg });
       return;
     }
@@ -356,7 +356,7 @@ ${challenger.name} \`[${chaHp} HP]\`
   // acknowledge button press
   try {
     const duelist = player === 'defender' ? defender : challenger;
-    const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
+    const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist);
     await interaction.update(msg);
   } catch (e) {
     console.warn('while trying to update button palette', e);
