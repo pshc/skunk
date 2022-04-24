@@ -7,6 +7,7 @@ import { Sorry, possessive, sleep } from '../utils';
 
 const NEXT_ROUND_DELAY = 4000;
 const MAX_CHARGE = 3;
+const TURNS_PER_ROUND = 2;
 
 // damage tiers
 const LOW = 2;
@@ -423,20 +424,20 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
       name: defender.name,
       dmg: 0,
       charge: defender.charge,
-      act: defender.act !== undefined ? Act[defender.act] : '..',
+      act: defender.act !== undefined ? Act[defender.act] : '.'.repeat(TURNS_PER_ROUND),
     },
     {
       name: challenger.name,
       dmg: 0,
       charge: challenger.charge,
-      act: challenger.act !== undefined ? Act[challenger.act] : '..',
+      act: challenger.act !== undefined ? Act[challenger.act] : '.'.repeat(TURNS_PER_ROUND),
     },
   ];
 
   // let's first sanity check that everyone is alive?
   if (defenderAlive() && challengerAlive()) {
     // break down the moves
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < TURNS_PER_ROUND; i++) {
       // to reduce case analysis, swap actions to be alphabetical
       const swapped = duo[0].act[i] > duo[1].act[i];
       if (swapped) {
@@ -537,7 +538,7 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
       if (!defenderAlive() || !challengerAlive()) {
         state = 'end';
         break;
-      } else if (i == 0) {
+      } else if (i < TURNS_PER_ROUND) {
         story.push('... and ...');
       }
     }
