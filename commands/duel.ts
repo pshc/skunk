@@ -112,7 +112,7 @@ ${story.length ? '\n🛡️ COMBAT 🛡️\n' + story.join('\n') : ''}`;
 }
 
 // Shows a private action list to the duelists.
-async function actionPalette(roundPrefix: string, duelist: Duelist, interaction: ButtonInteraction) {
+function actionPalette(roundPrefix: string, duelist: Duelist, interaction: ButtonInteraction) {
   const actions: ActionButton[] = [
     {id: 'AA', label: 'attack x2'},
     {id: 'AD', label: 'atk, def'},
@@ -136,7 +136,7 @@ async function actionPalette(roundPrefix: string, duelist: Duelist, interaction:
     new MessageButton()
       .setCustomId(`${roundPrefix}:${act.id}`)
       .setLabel(act.label)
-      .setStyle('SECONDARY')
+      .setStyle(Act[act.id] === duelist.act ? 'PRIMARY' : 'SECONDARY')
   );
 
   // arrange buttons into rows
@@ -157,7 +157,7 @@ async function actionPalette(roundPrefix: string, duelist: Duelist, interaction:
   }
 
   const content = 'Choose your next two actions:';
-  await interaction.reply({ content, components, ephemeral: true });
+  return { content, components };
 }
 
 /// Handles duel button callbacks.
@@ -197,18 +197,23 @@ export async function chooseAction(
   let challenger: Duelist;
   let story: string[] = [];
   let state: 'picking' | 'resolved' | 'end';
+  let player: 'defender' | 'challenger';
   try {
     if (duelId !== Number(await redis.get(activeKey))) {
       await interaction.reply({ content: 'Duel is already finished.', ephemeral: true });
       return;
     }
     if (round !== Number(await redis.get(roundKey))) {
-      await interaction.reply({ content: 'That round is over.', ephemeral: true });
+      try {
+        await interaction.update({ content: 'This round is over.', components: [] });
+      } catch (e) {
+        console.warn('round already over', e);
+        await interaction.reply({ content: 'That round is over.', ephemeral: true });
+      }
       return;
     }
   
     // check that this player is actually in the battle
-    let player: 'defender' | 'challenger';
     if (playerId === await redis.get(defenderKey)) {
       player = 'defender';
     } else if (playerId === await redis.get(challengerKey)) {
@@ -237,7 +242,8 @@ export async function chooseAction(
     // show the action palette on request
     if (act === 'choose') {
       const duelist = player === 'defender' ? defender : challenger;
-      await actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
+      const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
+      await interaction.reply({ ephemeral: true, ...msg });
       return;
     }
 
@@ -335,9 +341,12 @@ ${challenger.name} \`[${challenger.hp} HP]\`
     const reply = await interaction.channel.send({ fetchReply: true, ...msg });
     cacheDuelMessage(reply, arena, duelId, round);
   }
+
   // acknowledge button press
   try {
-    await interaction.update({ content: 'Selected.', components: [] });
+    const duelist = player === 'defender' ? defender : challenger;
+    const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
+    await interaction.update(msg);
   } catch (e) {
     console.warn('while trying to update button palette', e);
   }
