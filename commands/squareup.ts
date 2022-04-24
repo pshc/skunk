@@ -96,9 +96,10 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
 
       // give everyone a second to prepare (or back out)
       const hp = 20;
+      const charge = 0;
       const hasChosen = false;
-      const defender = { id: defenderId, name: defenderName, key: defenderKey, hp, hasChosen };
-      const challenger = { id: playerId, name, key: challengerKey, hp, hasChosen };
+      const defender = { id: defenderId, name: defenderName, key: defenderKey, hp, charge, hasChosen };
+      const challenger = { id: playerId, name, key: challengerKey, hp, charge, hasChosen };
       // prevent simultaneous `startFight` calls by saving and clearing the timeout
       if (PENDING_FIGHT) {
         clearTimeout(PENDING_FIGHT);
@@ -143,6 +144,8 @@ async function startFight(arena: Arena, duelId: number, defender: Duelist, chall
   tx.set(roundKey, round);
   tx.set(`${defender.key}:hp`, defender.hp);
   tx.set(`${challenger.key}:hp`, challenger.hp);
+  tx.set(`${defender.key}:charge`, 0);
+  tx.set(`${challenger.key}:charge`, 0);
   tx.del(`${defender.key}:action`);
   tx.del(`${challenger.key}:action`);
   await tx.exec();

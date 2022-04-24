@@ -6,12 +6,14 @@ import { lookupArena } from '../api';
 import { possessive, sleep } from '../utils';
 
 const NEXT_ROUND_DELAY = 4000;
+const MAX_CHARGE = 3;
 
 export interface Duelist {
   id: PlayerId,
   key: string, // redis key
   name: string,
   hp: number,
+  charge: number,
 
   // unsure if these belong in duelist state proper?
   hasChosen?: boolean,
@@ -61,6 +63,7 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
       key,
       name: await redis.hget(namesKey, id),
       hp: Number(await redis.get(`${key}:hp`)),
+      charge: Number(await redis.get(`${key}:charge`)),
       hasChosen: !!await redis.exists(`${key}:action`),
     };
   };
@@ -71,7 +74,7 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   await interaction.reply(msg);
 }
 
-enum Act { AA, AD, DA, DD, /*AW, DW,*/ WS, /*WW*/ }
+enum Act { AA, AD, DA, DD, AW, DW, WS, WW }
 
 type ActString = keyof typeof Act;
 
@@ -93,10 +96,10 @@ export function duelMessage(
       {id: 'AD', label: 'atk, def'},
       {id: 'DA', label: 'def, atk'},
       {id: 'DD', label: 'defend x2'},
-      //{id: 'AW', label: 'atk, windup'},
-      //{id: 'DW', label: 'def, windup'},
+      {id: 'AW', label: 'atk, windup'},
+      {id: 'DW', label: 'def, windup'},
       {id: 'WS', label: 'windup, special'},
-      //{id: 'WW', label: 'windup x2'},
+      {id: 'WW', label: 'windup x2'},
     ];
   }
 
@@ -125,8 +128,8 @@ export function duelMessage(
   }
 
   const content = `>>> __Round ${round}__
-\`${defender.name} [${defender.hp} HP]\` ${checkmark(defender.hasChosen)}
-\`${challenger.name} [${challenger.hp} HP]\` ${checkmark(challenger.hasChosen)}
+\`${defender.name}${'🔥'.repeat(defender.charge)} [${defender.hp} HP]\` ${checkmark(defender.hasChosen)}
+\`${challenger.name}${'🔥'.repeat(challenger.charge)} [${challenger.hp} HP]\` ${checkmark(challenger.hasChosen)}
 
 ${story.length ? story.join('\n') : 'Select your next two moves:'}`;
 
@@ -200,6 +203,7 @@ export async function chooseAction(
         key,
         name: await redis.hget(namesKey, id),
         hp: Number(await redis.get(`${key}:hp`)),
+        charge: Number(await redis.get(`${key}:charge`)),
       };
     };
     defender = await fetchDuelist(defenderKey);
@@ -238,6 +242,8 @@ export async function chooseAction(
       const tx = redis.multi()
         .decrby(`${defenderKey}:hp`, outcome.damage.defender)
         .decrby(`${challengerKey}:hp`, outcome.damage.challenger)
+        .set(`${defenderKey}:charge`, outcome.charge.defender)
+        .set(`${challengerKey}:charge`, outcome.charge.challenger)
         .del(`${defenderKey}:action`)
         .del(`${challengerKey}:action`);
       if (state !== 'end') {
@@ -274,6 +280,8 @@ export async function chooseAction(
     challenger.hasChosen = false;
     defender.hp = Number(await redis.get(`${defenderKey}:hp`));
     challenger.hp = Number(await redis.get(`${challengerKey}:hp`));
+    defender.charge = Number(await redis.get(`${defenderKey}:charge`));
+    challenger.charge = Number(await redis.get(`${challengerKey}:charge`));
     // send it
     const msg = duelMessage(arena, duelId, round + 1, defender, challenger, 'picking', []);
     if (interaction.channel) {
@@ -285,14 +293,15 @@ export async function chooseAction(
     // reset everything
     await redis.del(
       activeKey, roundKey,
-      defenderKey, `${defenderKey}:hp`, `${defenderKey}:action`,
-      challengerKey, `${challengerKey}:hp`, `${challengerKey}:action`,
+      defenderKey, `${defenderKey}:hp`, `${defenderKey}:charge`, `${defenderKey}:action`,
+      challengerKey, `${challengerKey}:hp`, `${defenderKey}:charge`, `${challengerKey}:action`,
     );
   }
 }
 
 interface Outcome {
   damage: { defender: number, challenger: number },
+  charge: { defender: number, challenger: number },
   story: string[],
   state: 'resolved' | 'end',
 }
@@ -307,12 +316,25 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
   const damage = { defender: 0, challenger: 0 };
   const defenderAlive = () => (defender.hp - damage.defender) > 0;
   const challengerAlive = () => (challenger.hp - damage.challenger) > 0;
+
+  // we'll use these temporary states while processing both fight steps
+  const duo = [
+    {
+      name: defender.name,
+      dmg: 0,
+      charge: defender.charge,
+      act: defender.act !== undefined ? Act[defender.act] : '..',
+    },
+    {
+      name: challenger.name,
+      dmg: 0,
+      charge: challenger.charge,
+      act: challenger.act !== undefined ? Act[challenger.act] : '..',
+    },
+  ];
+
   // let's first sanity check that everyone is alive?
   if (defenderAlive() && challengerAlive()) {
-    const duo = [
-      {name: defender.name, dmg: 0, act: defender.act !== undefined ? Act[defender.act] : '..'},
-      {name: challenger.name, dmg: 0, act: challenger.act !== undefined ? Act[challenger.act] : '..'},
-    ];
     // break down the moves
     for (let i = 0; i < 2; i++) {
       // to reduce case analysis, swap actions to be alphabetical
@@ -328,52 +350,82 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
           story.push(`${duo[0].name} and ${duo[1].name} attack simultaneously. \`both -${MID} HP\``);
           duo[0].dmg += MID;
           duo[1].dmg += MID;
+          duo[0].charge = 0;
+          duo[1].charge = 0;
           break;
         case 'D - D':
           story.push(`${duo[0].name} and ${duo[1].name} both block.`);
+          duo[0].charge = 0;
+          duo[1].charge = 0;
           break;
         case 'A - D':
           story.push(`${duo[0].name} hits ${possessive(duo[1].name)} shield. \`${duo[1].name} -${LOW} HP\``);
           duo[1].dmg += LOW;
+          duo[0].charge = 0;
+          duo[1].charge = 0;
           break;
         case 'A - W':
           story.push(`${duo[0].name} hits ${duo[1].name} while they wind up. \`${duo[1].name} -${MID} HP\``);
+          duo[0].charge = 0;
           duo[1].dmg += MID;
+          duo[1].charge++;
           break;
         case 'D - W':
           story.push(`${duo[0].name} holds up their shield while ${duo[1].name} winds up.`);
+          duo[0].charge = 0;
+          duo[1].charge++;
+          break;
+        case 'S - W':
+          story.push(`${duo[0].name} performs a special attack on ${duo[1].name} while they wind up. \`${duo[1].name} -${HIGH} HP\``);
+          duo[1].dmg += HIGH;
+          duo[0].charge--;
+          duo[1].charge++;
           break;
         case 'W - W':
           story.push(`${duo[0].name} and ${duo[1].name} are winding up...`);
+          duo[0].charge++;
+          duo[1].charge++;
           break;
         case 'A - S':
           story.push(`${duo[0].name} hits ${duo[1].name} \`-${MID} HP\``);
           story.push(`while ${duo[1].name} counters with their special attack! \`${duo[0].name} -${HIGH} HP\``);
           duo[0].dmg += HIGH;
           duo[1].dmg += MID;
+          duo[0].charge = 0;
+          duo[1].charge--;
           break;
         case 'D - S':
           story.push(`${duo[1].name} attacks desperately,`);
           story.push(`but ${duo[0].name} parries and counter-attacks! \`${duo[1].name} -${HIGH} HP\``);
           duo[1].dmg += HIGH;
+          duo[0].charge = 0;
+          duo[1].charge--;
           break;
         case 'S - S':
           story.push(`${duo[0].name} and ${duo[1].name} perform their specials. \`both -${HIGH} HP\``);
           duo[0].dmg += HIGH;
           duo[1].dmg += HIGH;
+          duo[0].charge--;
+          duo[1].charge--;
           break;
         default:
           console.error(`conflict: what is '${moves}'?`);
           story.push(`Something unexpected happened, causing psychic damage. \`both -${LOW} HP\``);
           duo[0].dmg += LOW;
           duo[1].dmg += LOW;
+          duo[0].charge--;
+          duo[1].charge--;
       }
+      // clamp charges
+      duo[0].charge = Math.max(0, Math.min(duo[0].charge, MAX_CHARGE));
+      duo[1].charge = Math.max(0, Math.min(duo[1].charge, MAX_CHARGE));
       // now swap back if necessary
       if (swapped) {
         const s = duo.shift();
         assert(s);
         duo.push(s);
       }
+
       damage.defender = duo[0].dmg;
       damage.challenger = duo[1].dmg;
       // anyone go to 0 HP?
@@ -402,10 +454,13 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
     } else {
       story.push('**No survivors.**');
     }
+    duo[0].charge = 0;
+    duo[1].charge = 0;
   }
 
   return {
     damage,
+    charge: { defender: duo[0].charge, challenger: duo[1].charge },
     story,
     state,
   };
