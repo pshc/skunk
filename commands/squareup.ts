@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, MessageButton } from 'discord.js';
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
-import { chooseOne, possessive } from '../utils';
+import { chooseOne } from '../utils';
 import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -29,6 +29,7 @@ type EitherInteraction = CommandInteraction | ButtonInteraction;
 export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId: number | 'next', interaction: EitherInteraction) {
   const { redis } = global as any;
   const namesKey = `${arena}:names`;
+  const mentionsKey = `${arena}:mentions`;
   const name: string = (await redis.hget(namesKey, playerId)) || '???';
 
   const duelCountKey = `${arena}:duel:count`; // ID of the next duel
@@ -71,12 +72,19 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
     assert(defenderId, 'Opponent disappeared!');
     const defenderName: string | null = await redis.hget(namesKey, defenderId);
     assert(defenderName, 'Opponent disappeared!');
+
+    // load up discord @mention
+    const chaUserId = await redis.hget(mentionsKey, playerId);
+    const challengerMention = chaUserId ? `<@${chaUserId}>` : name;
+    const defUserId = await redis.hget(mentionsKey, defenderId);
+    const defenderMention = defUserId ? `<@${defUserId}>` : defenderName;
+
     // someone is already squared up, try to start a fight
     if (playerId === defenderId) {
       await interaction.reply({ content: 'You are already squared up!', ephemeral: true });
     } else if (await redis.setnx(challengerKey, playerId)) {
       // challenge accepted!
-      const content = `Get ready! ${name} accepted ${possessive(defenderName)} challenge.`;
+      const content = `Get ready! ${challengerMention} accepted ${defenderMention}'s challenge.`;
       const components = makeChallengeButtons(arena, nextDuel, false);
 
       // update the existing challenge message
