@@ -538,7 +538,7 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
       if (!defenderAlive() || !challengerAlive()) {
         state = 'end';
         break;
-      } else if (i < TURNS_PER_ROUND) {
+      } else if (i < TURNS_PER_ROUND - 1) {
         story.push('... and ...');
       }
     }
