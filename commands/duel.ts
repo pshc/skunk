@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
-import { ActionRowBuilder, SlashCommandBuilder, strikethrough } from '@discordjs/builders';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, InteractionReplyOptions, Message, MessageActionRow, MessageButton } from 'discord.js';
 import type { Arena, PlayerId } from '../api';
 import { lookupArena } from '../api';
-import { possessive, sleep } from '../utils';
+import { Sorry, possessive, sleep } from '../utils';
 
 const NEXT_ROUND_DELAY = 4000;
 const MAX_CHARGE = 3;
@@ -199,6 +199,15 @@ export async function chooseAction(
   // for now: just hold the lock for a second
   await redis.expire(roundLock, 1);
 
+  const lockState = {taken: true};
+  const releaseLock = async () => {
+    // this is also race condition-y...
+    if (lockState.taken && await redis.get(roundLock) === playerId) {
+      lockState.taken = false;
+      await redis.del(roundLock);
+    }
+  };
+
   let defender: Duelist;
   let challenger: Duelist;
   let story: string[] = [];
@@ -206,15 +215,14 @@ export async function chooseAction(
   let player: 'defender' | 'challenger';
   try {
     if (duelId !== Number(await redis.get(activeKey))) {
-      await interaction.reply({ content: 'Duel is already finished.', ephemeral: true });
-      return;
+      throw new Sorry('Duel is already finished.');
     }
     if (round !== Number(await redis.get(roundKey))) {
+      await releaseLock();
       try {
         await interaction.update({ content: 'This round is over.', components: [] });
       } catch (e) {
-        console.warn('round already over', e);
-        await interaction.reply({ content: 'That round is over.', ephemeral: true });
+        assert(false, 'That round is over.');
       }
       return;
     }
@@ -225,8 +233,7 @@ export async function chooseAction(
     } else if (playerId === await redis.get(challengerKey)) {
       player = 'challenger';
     } else {
-      await interaction.reply({ content: 'You are not in this duel, sorry!', ephemeral: true });
-      return;
+      throw new Sorry('You are not in this duel, sorry!');
     }
 
     // DRY
@@ -247,6 +254,7 @@ export async function chooseAction(
 
     // show the action palette on request
     if (act === 'choose') {
+      await releaseLock();
       const duelist = player === 'defender' ? defender : challenger;
       const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist, interaction);
       await interaction.reply({ ephemeral: true, ...msg });
@@ -330,12 +338,8 @@ ${challenger.name} \`[${chaHp} HP]\`
     } else {
       state = 'picking';
     }
-
   } finally {
-    // release the lock (this is also race condition-y)
-    if (await redis.get(roundLock) === playerId) {
-      await redis.del(roundLock);
-    }
+    await releaseLock();
   }
 
   // update the round message
