@@ -151,7 +151,7 @@ async function startFight(arena: Arena, duelId: number, defender: Duelist, chall
   await tx.exec();
 
   // use a follow-up message to print the starting state
-  const msg = duelMessage(arena, duelId, round, defender, challenger, 'picking', []);
+  const msg = duelMessage(arena, duelId, round, defender, challenger, 'picking');
   const reply = await interaction.followUp({ fetchReply: true, ...msg });
   if (reply instanceof Message) {
     cacheDuelMessage(reply, arena, duelId, round);

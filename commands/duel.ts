@@ -71,7 +71,7 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const defender = await fetchDuelist(defenderKey);
   const challenger = await fetchDuelist(challengerKey);
 
-  const msg = duelMessage(arena, Number(duelId), round, defender, challenger, 'picking', []);
+  const msg = duelMessage(arena, Number(duelId), round, defender, challenger, 'picking');
   // typescript why?
   const reply = <any>await interaction.reply({ fetchReply: true, ...msg });
   cacheDuelMessage(reply, arena, duelId, round);
@@ -89,7 +89,6 @@ export function duelMessage(
   defender: Duelist,
   challenger: Duelist,
   state: 'picking' | 'resolved' | 'end',
-  story: string[],
 ): InteractionReplyOptions {
 
   const components = [
@@ -106,7 +105,7 @@ export function duelMessage(
   const content = `>>> __Round ${round}__
 \`${defender.name}${'🔥'.repeat(defender.charge)} [${defender.hp} HP]\` ${checkmark(defender.hasChosen)}
 \`${challenger.name}${'🔥'.repeat(challenger.charge)} [${challenger.hp} HP]\` ${checkmark(challenger.hasChosen)}
-${story.length ? '\n🛡️ COMBAT 🛡️\n' + story.join('\n') : ''}`;
+`;
 
   return { content, components };
 }
@@ -332,14 +331,15 @@ ${challenger.name} \`[${chaHp} HP]\`
     }
   }
 
-  // update the combat message
-  const msg = duelMessage(arena, duelId, round, defender, challenger, state, story);
-  const cachedMessage = ROUND_MSG_CACHE.get(`${arena}:${duelId}:${round}`);
+  // update the round message
+  const msg = duelMessage(arena, duelId, round, defender, challenger, state);
+  let cachedMessage = ROUND_MSG_CACHE.get(`${arena}:${duelId}:${round}`);
   if (cachedMessage) {
     await cachedMessage.edit(msg);
   } else if (interaction.channel) {
-    const reply = await interaction.channel.send({ fetchReply: true, ...msg });
-    cacheDuelMessage(reply, arena, duelId, round);
+    // gotta make a new one
+    cachedMessage = await interaction.channel.send({ fetchReply: true, ...msg });
+    cacheDuelMessage(cachedMessage, arena, duelId, round);
   }
 
   // acknowledge button press
@@ -349,6 +349,23 @@ ${challenger.name} \`[${chaHp} HP]\`
     await interaction.update(msg);
   } catch (e) {
     console.warn('while trying to update button palette', e);
+  }
+
+  // now post the story
+  if (story.length) {
+    const content = '\n🛡️ COMBAT 🛡️\n' + story.join('\n');
+    if (cachedMessage) {
+      try {
+        await cachedMessage.reply(content);
+      } catch (e) {
+        console.warn('reply cached story', e);
+        await interaction.channel?.send(content);
+      }
+    } else if (interaction.channel) {
+      await interaction.channel.send(content);
+    } else {
+      console.error(`couldn't post story: ${content}`);
+    }
   }
 
   if (state === 'resolved') {
@@ -363,7 +380,7 @@ ${challenger.name} \`[${chaHp} HP]\`
     defender.charge = Number(await redis.get(`${defenderKey}:charge`));
     challenger.charge = Number(await redis.get(`${challengerKey}:charge`));
     // send it
-    const msg = duelMessage(arena, duelId, round + 1, defender, challenger, 'picking', []);
+    const msg = duelMessage(arena, duelId, round + 1, defender, challenger, 'picking');
     let reply;
     if (interaction.channel) {
       reply = await interaction.channel.send({ fetchReply: true, ...msg });
