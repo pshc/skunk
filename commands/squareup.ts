@@ -8,7 +8,7 @@ import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage, emptySelections } 
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('squareup')
-  .setDescription('Assume the position.');
+  .setDescription('Start or join a duel.');
 
 export async function execute(interaction: CommandInteraction) {
   const arena = lookupArena(interaction);

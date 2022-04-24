@@ -7,7 +7,7 @@ import { CHALLENGE_MSG_CACHE, makeChallengeButtons } from './squareup';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('stepdown')
-  .setDescription('Retreat from the challenge.');
+  .setDescription('Flee from the incoming duel.');
 
 export async function execute(interaction: CommandInteraction) {
   const arena = lookupArena(interaction);
