@@ -292,17 +292,17 @@ export async function chooseAction(
         const channel = interaction.channel;
         if (channel) {
           // store result for printing momentarily
-          defender.hp = Number(await redis.get(`${defenderKey}:hp`));
-          challenger.hp = Number(await redis.get(`${challengerKey}:hp`));
-          let final = `${defender.name} \`[${defender.hp} HP]\`
-${challenger.name} \`[${challenger.hp} HP]\`
+          const defHp = Number(await redis.get(`${defenderKey}:hp`));
+          const chaHp = Number(await redis.get(`${challengerKey}:hp`));
+          let final = `${defender.name} \`[${defHp} HP]\`
+${challenger.name} \`[${chaHp} HP]\`
 
 `;
-          if (defender.hp <= 0 && challenger.hp <= 0) {
+          if (defHp <= 0 && chaHp <= 0) {
             final += '**Draw.**';
-          } else if (challenger.hp <= 0) {
+          } else if (chaHp <= 0) {
             final += `**${defender.name} is victorious!**`;
-          } else if (defender.hp <= 0) {
+          } else if (defHp <= 0) {
             final += `**${challenger.name} is victorious!**`;
           } else {
             final += 'Duel ended mysteriously?';
