@@ -4,7 +4,7 @@ import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, Messa
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { chooseOne } from '../utils';
-import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage } from './duel';
+import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage, emptySelections } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('squareup')
@@ -106,8 +106,8 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
       const hp = STARTING_HP;
       const charge = 0;
       const hasChosen = false;
-      const defender = { id: defenderId, name: defenderName, key: defenderKey, hp, charge, hasChosen };
-      const challenger = { id: playerId, name, key: challengerKey, hp, charge, hasChosen };
+      const defender = { id: defenderId, name: defenderName, key: defenderKey, hp, charge, acts: emptySelections(), hasChosen };
+      const challenger = { id: playerId, name, key: challengerKey, hp, charge, acts: emptySelections(), hasChosen };
       // prevent simultaneous `startFight` calls by saving and clearing the timeout
       if (PENDING_FIGHT) {
         clearTimeout(PENDING_FIGHT);

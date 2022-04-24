@@ -16,6 +16,9 @@ const HIGH = 10;
 
 export const STARTING_HP = 25;
 
+type Act = 'A' | 'D' | 'S' | 'W';
+const ACT_DOT_STR = 'ADSW.';
+
 export interface Duelist {
   id: PlayerId,
   key: string, // redis key
@@ -24,13 +27,14 @@ export interface Duelist {
   charge: number,
 
   // unsure if these belong in duelist state proper?
+  acts: (Act | '.')[],
   hasChosen?: boolean,
-  act?: Act,
 }
 
 interface ActionButton {
-  id: ActString, // customId suffix
-  label: string,
+  id: Act, // customId suffix
+  emoji: string,
+  enabled?: boolean,
 }
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -63,17 +67,20 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
     return;
   }
 
-  // load up the state
+  // load up the state (but don't expose the selections)
   const round = Number(await redis.get(roundKey));
   const fetchDuelist = async (key: string) => {
     const id = await redis.get(key);
+    const acts = await redis.get(`${key}:action`) || emptySelections();
+    const hasChosen = !acts.includes('.');
     return {
       id,
       key,
       name: await redis.hget(namesKey, id),
       hp: Number(await redis.get(`${key}:hp`)),
       charge: Number(await redis.get(`${key}:charge`)),
-      hasChosen: !!await redis.exists(`${key}:action`),
+      hasChosen,
+      acts: emptySelections(), // these are secret, after all
     };
   };
   const defender = await fetchDuelist(defenderKey);
@@ -84,10 +91,6 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const reply = <any>await interaction.reply({ fetchReply: true, ...msg });
   cacheDuelMessage(reply, arena, duelId, round);
 }
-
-enum Act { AA, AD, DA, DD, AW, DW, WS, WW, SA, SD, SW }
-
-type ActString = keyof typeof Act;
 
 /// Generates current duel round and status in discord data structures.
 export function duelMessage(
@@ -118,50 +121,90 @@ export function duelMessage(
   return { content, components };
 }
 
+export const emptySelections = () => Array(TURNS_PER_ROUND).fill('.');
+
 // Shows a private action list to the duelists.
-function actionPalette(roundPrefix: string, duelist: Duelist) {
-  const actions: ActionButton[] = [
-    {id: 'AA', label: 'attack x2'},
-    {id: 'AD', label: 'atk, def'},
-    {id: 'DA', label: 'def, atk'},
-    {id: 'DD', label: 'defend x2'},
-    {id: 'AW', label: 'atk, windup'},
-    {id: 'DW', label: 'def, windup'},
-    {id: 'WS', label: 'windup, special'},
-    {id: 'WW', label: 'windup x2'},
-  ];
-  if (duelist.charge > 0) {
-    actions.push({id: 'SA', label: 'spec, atk'});
-    actions.push({id: 'SD', label: 'spec, def'});
-    actions.push({id: 'SW', label: 'spec, windup'});
+function actionPalette(arena: Arena, duelId: number, round: number, duelist: Duelist) {
+  const selections = duelist.acts;
+  assert(selections.length === TURNS_PER_ROUND);
+  const components: MessageActionRow[] = [];
+
+  // build up the customId for each button
+  let roundPrefix = `${arena}:duel:${duelId}:round:${round}:`;
+
+  // simulation state
+  let reachedThisTurn = true;
+  let { charge } = duelist;
+
+  // one row of emoji per turn
+  for (let turn = 0; turn < TURNS_PER_ROUND; turn++) {
+    const picked = selections[turn];
+    const buttonize = (act: ActionButton) => (
+      new MessageButton()
+        .setCustomId(`${roundPrefix}${act.id}` + '.'.repeat(TURNS_PER_ROUND - turn - 1))
+        .setEmoji(act.emoji)
+        .setStyle(act.id === picked ? 'PRIMARY' : 'SECONDARY')
+        .setDisabled(!reachedThisTurn || act.enabled === false)
+    );
+    const actions: ActionButton[] = [
+      {id: 'A', emoji: '🗡️'},
+      {id: 'D', emoji: '🛡️'},
+      {id: 'W', emoji: '🔥'},
+      {id: 'S', emoji: '☄️', enabled: charge > 0},
+    ];
+    const row = new MessageActionRow().addComponents(... actions.map(buttonize));
+    components.push(row);
+
+    // simulate to determine which buttons are enabled in the next row
+    if (picked === 'W') {
+      charge = Math.min(charge + 1, MAX_CHARGE);
+    } else {
+      charge = 0;
+    }
+    if (picked === '.') {
+      reachedThisTurn = false;
+    }
+    roundPrefix += picked;
   }
 
-  const buttonize = (act: ActionButton) => (
-    new MessageButton()
-      .setCustomId(`${roundPrefix}:${act.id}`)
-      .setLabel(act.label)
-      .setStyle(Act[act.id] === duelist.act ? 'PRIMARY' : 'SECONDARY')
-  );
+  const content = `Choose your next ${TURNS_PER_ROUND} actions:`;
+  return { content, components };
+}
 
-  // arrange buttons into rows
-  const components: MessageActionRow[] = [];
-  if (actions.length) {
-    const rowLen = 3;
-    let row = new MessageActionRow;
-    for (const act of actions) {
-      row.addComponents(buttonize(act));
-      if (row.components.length >= rowLen) {
-        components.push(row);
-        row = new MessageActionRow;
+/// Parse and validate a string of actions into an array e.g. 'A.' -> ['A', '.']
+function parseActs(str: string, duelist?: Duelist): (Act | '.')[] {
+  assert(str.length === TURNS_PER_ROUND, 'wrong number of actions');
+  const parsed: (Act | '.')[] = [];
+
+  // simulate to validate incoming choices
+  let charge = duelist?.charge || 0;
+  let stillSelecting = true;
+
+  for (let i = 0; i < TURNS_PER_ROUND; i++) {
+    const c = str[i];
+    assert(ACT_DOT_STR.includes(c), `invalid act ${c}`);
+    assert(stillSelecting || c === '.', "cannot select ahead of time");
+
+    // validate game logic if a duelist was provided
+    if (duelist) {
+      // DRY-ish with above
+      if (c === 'W') {
+        charge = Math.min(charge + 1, MAX_CHARGE);
+      } else if (c === 'S') {
+        assert(charge > 0, 'no charge for special');
+        charge = 0;
+      } else {
+        charge = 0;
       }
     }
-    if (row.components.length > 0) {
-      components.push(row);
+    // ensure turns are picked in order
+    if (c === '.') {
+      stillSelecting = false;
     }
-  }
 
-  const content = 'Choose your next two actions:';
-  return { content, components };
+    parsed.push(c as any);
+  }
+  return parsed;
 }
 
 /// Handles duel button callbacks.
@@ -170,7 +213,7 @@ export async function chooseAction(
   playerId: PlayerId,
   duelId: number,
   round: number,
-  act: string,
+  chosenActs: string,
   interaction: ButtonInteraction,
 ) {
   const { redis } = global as any;
@@ -234,53 +277,44 @@ export async function chooseAction(
       throw new Sorry('You are not in this duel, sorry!');
     }
 
-    // DRY
     // load up the rest of the duelists' state
     const fetchDuelist = async (key: string) => {
       const id = await redis.get(key);
+      const acts = await redis.get(`${key}:action`);
       return {
         id,
         key,
         name: await redis.hget(namesKey, id),
         hp: Number(await redis.get(`${key}:hp`)),
         charge: Number(await redis.get(`${key}:charge`)),
+        acts: acts ? parseActs(acts) : emptySelections(),
       };
     };
     defender = await fetchDuelist(defenderKey);
     challenger = await fetchDuelist(challengerKey);
-    // end DRY
 
     // show the action palette on request
-    if (act === 'choose') {
+    if (chosenActs === 'choose') {
       await releaseLock();
       const duelist = player === 'defender' ? defender : challenger;
-      const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist);
+      const msg = actionPalette(arena, duelId, round, duelist);
       await interaction.reply({ ephemeral: true, ...msg });
       return;
     }
 
     if (player === 'defender') {
-      // validate the action enum str
-      // TODO check if defender may do this right now
-      defender.act = (<any>Act)[act];
-      assert(act in Act, `invalid act: ${JSON.stringify(act)} -> ${defender.act}`);
-      defender.hasChosen = true;
-      // store defender's action and retrieve challenger's
-      await redis.set(`${defenderKey}:action`, act);
-      challenger.act = (<any>Act)[await redis.get(`${challengerKey}:action`)];
-      challenger.hasChosen = challenger.act !== undefined;
+      defender.acts = parseActs(chosenActs, defender);
+      await redis.set(`${defenderKey}:action`, defender.acts.join(''));
+
     } else {
       assert(player === 'challenger');
-      // store challenger's action
-      // TODO check if challenger may actually perform this right now
-      challenger.act = (<any>Act)[act];
-      assert(act in Act, `invalid act: ${JSON.stringify(act)} -> ${challenger.act}`);
+      challenger.acts = parseActs(chosenActs, challenger);
       challenger.hasChosen = true;
-      await redis.set(`${challengerKey}:action`, act);
-      // retrieve defender's action
-      defender.act = (<any>Act)[await redis.get(`${defenderKey}:action`)];
-      defender.hasChosen = defender.act !== undefined;
+      await redis.set(`${challengerKey}:action`, challenger.acts.join(''));
     }
+    // are we all ready?
+    defender.hasChosen = !defender.acts.includes('.');
+    challenger.hasChosen = !challenger.acts.includes('.');
 
     if (defender.hasChosen && challenger.hasChosen) {
       // play out the round
@@ -354,7 +388,7 @@ ${challenger.name} \`[${chaHp} HP]\`
   // acknowledge button press
   try {
     const duelist = player === 'defender' ? defender : challenger;
-    const msg = actionPalette(`${arena}:duel:${duelId}:round:${round}`, duelist);
+    const msg = actionPalette(arena, duelId, round, duelist);
     await interaction.update(msg);
   } catch (e) {
     console.warn('while trying to update button palette', e);
@@ -380,8 +414,8 @@ ${challenger.name} \`[${chaHp} HP]\`
   if (state === 'resolved') {
     await sleep(NEXT_ROUND_DELAY);
     // reset some state for this next round
-    defender.act = undefined;
-    challenger.act = undefined;
+    defender.acts = emptySelections();
+    challenger.acts = emptySelections();
     defender.hasChosen = false;
     challenger.hasChosen = false;
     defender.hp = Number(await redis.get(`${defenderKey}:hp`));
@@ -419,121 +453,119 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
   const challengerAlive = () => (challenger.hp - damage.challenger) > 0;
 
   // we'll use these temporary states while processing both fight steps
-  const duo = [
-    {
-      name: defender.name,
-      dmg: 0,
-      charge: defender.charge,
-      act: defender.act !== undefined ? Act[defender.act] : '.'.repeat(TURNS_PER_ROUND),
-    },
-    {
-      name: challenger.name,
-      dmg: 0,
-      charge: challenger.charge,
-      act: challenger.act !== undefined ? Act[challenger.act] : '.'.repeat(TURNS_PER_ROUND),
-    },
-  ];
+  let a = {
+    name: defender.name,
+    dmg: 0,
+    charge: defender.charge,
+    acts: defender.acts,
+  };
+  let b = {
+    name: challenger.name,
+    dmg: 0,
+    charge: challenger.charge,
+    acts: challenger.acts,
+  };
 
   // let's first sanity check that everyone is alive?
   if (defenderAlive() && challengerAlive()) {
     // break down the moves
     for (let i = 0; i < TURNS_PER_ROUND; i++) {
       // to reduce case analysis, swap actions to be alphabetical
-      const swapped = duo[0].act[i] > duo[1].act[i];
+      const swapped = a.acts[i] > b.acts[i];
       if (swapped) {
-        const s = duo.shift();
-        assert(s);
-        duo.push(s);
+        const temp = b;
+        b = a;
+        a = temp;
       }
-      const moves = `${duo[0].act[i]} - ${duo[1].act[i]}`;
-      const special0 = HIGH * duo[0].charge;
-      const special1 = HIGH * duo[1].charge;
+      const moves = `${a.acts[i]} - ${b.acts[i]}`;
+      const specialA = HIGH * a.charge;
+      const specialB = HIGH * b.charge;
       switch (moves) {
         case 'A - A':
-          story.push(`${duo[0].name} and ${duo[1].name} attack simultaneously. \`both -${MID} HP\``);
-          duo[0].dmg += MID;
-          duo[1].dmg += MID;
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          story.push(`${a.name} and ${b.name} attack simultaneously. \`both -${MID} HP\``);
+          a.dmg += MID;
+          b.dmg += MID;
+          a.charge = 0;
+          b.charge = 0;
           break;
         case 'D - D':
-          story.push(`${duo[0].name} and ${duo[1].name} both block.`);
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          story.push(`${a.name} and ${b.name} both block.`);
+          a.charge = 0;
+          b.charge = 0;
           break;
         case 'A - D':
-          story.push(`${duo[0].name} hits ${possessive(duo[1].name)} shield. \`${duo[1].name} -${LOW} HP\``);
-          duo[1].dmg += LOW;
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          story.push(`${a.name} hits ${possessive(b.name)} shield. \`${b.name} -${LOW} HP\``);
+          b.dmg += LOW;
+          a.charge = 0;
+          b.charge = 0;
           break;
         case 'A - W':
-          story.push(`${duo[0].name} hits ${duo[1].name} while they wind up. \`${duo[1].name} -${MID} HP\``);
-          duo[1].dmg += MID;
-          duo[0].charge = 0;
-          duo[1].charge++;
+          story.push(`${a.name} hits ${b.name} while they wind up. \`${b.name} -${MID} HP\``);
+          b.dmg += MID;
+          a.charge = 0;
+          b.charge++;
           break;
         case 'D - W':
-          story.push(`${duo[0].name} holds up their shield while ${duo[1].name} winds up.`);
-          duo[0].charge = 0;
-          duo[1].charge++;
+          story.push(`${a.name} holds up their shield while ${b.name} winds up.`);
+          a.charge = 0;
+          b.charge++;
           break;
         case 'S - W':
-          story.push(`while ${duo[1].name} is winding up,`);
-          story.push(`${duo[0].name} performs ${duo[0].charge}x special! \`${duo[1].name} -${special0} HP\``);
-          duo[1].dmg += special0;
-          duo[0].charge = 0;
-          duo[1].charge++;
+          story.push(`while ${b.name} is winding up,`);
+          story.push(`${a.name} performs ${a.charge}x special! \`${b.name} -${specialA} HP\``);
+          b.dmg += specialA;
+          a.charge = 0;
+          b.charge++;
           break;
         case 'W - W':
-          story.push(`${duo[0].name} and ${duo[1].name} are winding up.`);
-          duo[0].charge++;
-          duo[1].charge++;
+          story.push(`${a.name} and ${b.name} are winding up.`);
+          a.charge++;
+          b.charge++;
           break;
         case 'A - S':
-          story.push(`${duo[0].name} hits ${duo[1].name} \`-${MID} HP\``);
-          story.push(`while ${duo[1].name} counters with ${duo[1].charge}x special attack! \`${duo[0].name} -${special1} HP\``);
-          duo[0].dmg += special1;
-          duo[1].dmg += MID;
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          story.push(`${a.name} hits ${b.name} \`-${MID} HP\``);
+          story.push(`while ${b.name} counters with ${b.charge}x special attack! \`${a.name} -${specialB} HP\``);
+          a.dmg += specialB;
+          b.dmg += MID;
+          a.charge = 0;
+          b.charge = 0;
           break;
         case 'D - S':
-          story.push(`${duo[1].name} attempts their special,`);
-          story.push(`but ${duo[0].name} parries and counter-attacks! \`${duo[1].name} -${HIGH} HP\``);
+          story.push(`${b.name} attempts their special,`);
+          story.push(`but ${a.name} parries and counter-attacks! \`${b.name} -${HIGH} HP\``);
           // skip multiplier on counter attack (for now?)
-          duo[1].dmg += HIGH;
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          b.dmg += HIGH;
+          a.charge = 0;
+          b.charge = 0;
           break;
         case 'S - S':
-          story.push(`${duo[0].name} performs ${duo[0].charge}x special, \`${duo[1].name} -${special0} HP\``);
-          story.push(`while ${duo[1].name} hits back with ${duo[1].charge}x special! \`${duo[0].name} -${special1} HP\``);
-          duo[0].dmg += special1;
-          duo[1].dmg += special0;
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          story.push(`${a.name} performs ${a.charge}x special, \`${b.name} -${specialA} HP\``);
+          story.push(`while ${b.name} hits back with ${b.charge}x special! \`${a.name} -${specialB} HP\``);
+          a.dmg += specialB;
+          b.dmg += specialA;
+          a.charge = 0;
+          b.charge = 0;
           break;
         default:
           console.error(`conflict: what is '${moves}'?`);
           story.push(`Something unexpected happened, causing psychic damage. \`both -${LOW} HP\``);
-          duo[0].dmg += LOW;
-          duo[1].dmg += LOW;
-          duo[0].charge = 0;
-          duo[1].charge = 0;
+          a.dmg += LOW;
+          b.dmg += LOW;
+          a.charge = 0;
+          b.charge = 0;
       }
       // clamp charges
-      duo[0].charge = Math.max(0, Math.min(duo[0].charge, MAX_CHARGE));
-      duo[1].charge = Math.max(0, Math.min(duo[1].charge, MAX_CHARGE));
+      a.charge = Math.max(0, Math.min(a.charge, MAX_CHARGE));
+      b.charge = Math.max(0, Math.min(b.charge, MAX_CHARGE));
       // now swap back if necessary
       if (swapped) {
-        const s = duo.shift();
-        assert(s);
-        duo.push(s);
+        const temp = b;
+        b = a;
+        a = temp;
       }
 
-      damage.defender = duo[0].dmg;
-      damage.challenger = duo[1].dmg;
+      damage.defender = a.dmg;
+      damage.challenger = b.dmg;
       // anyone go to 0 HP?
       if (!defenderAlive() || !challengerAlive()) {
         state = 'end';
@@ -544,13 +576,13 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
     }
   } else {
     state = 'end';
-    duo[0].charge = 0;
-    duo[1].charge = 0;
+    a.charge = 0;
+    b.charge = 0;
   }
 
   return {
     damage,
-    charge: { defender: duo[0].charge, challenger: duo[1].charge },
+    charge: { defender: a.charge, challenger: b.charge },
     story,
     state,
   };
