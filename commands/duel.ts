@@ -84,7 +84,7 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   cacheDuelMessage(reply, arena, duelId, round);
 }
 
-enum Act { AA, AD, DA, DD, AW, DW, WS, WW, SA, SD, SW, SS }
+enum Act { AA, AD, DA, DD, AW, DW, WS, WW, SA, SD, SW }
 
 type ActString = keyof typeof Act;
 
@@ -133,9 +133,6 @@ function actionPalette(roundPrefix: string, duelist: Duelist) {
     actions.push({id: 'SA', label: 'spec, atk'});
     actions.push({id: 'SD', label: 'spec, def'});
     actions.push({id: 'SW', label: 'spec, windup'});
-  }
-  if (duelist.charge > 1) {
-    actions.push({id: 'SS', label: 'special x2'});
   }
 
   const buttonize = (act: ActionButton) => (
@@ -448,6 +445,8 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
         duo.push(s);
       }
       const moves = `${duo[0].act[i]} - ${duo[1].act[i]}`;
+      const special0 = HIGH * duo[0].charge;
+      const special1 = HIGH * duo[1].charge;
       switch (moves) {
         case 'A - A':
           story.push(`${duo[0].name} and ${duo[1].name} attack simultaneously. \`both -${MID} HP\``);
@@ -469,8 +468,8 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
           break;
         case 'A - W':
           story.push(`${duo[0].name} hits ${duo[1].name} while they wind up. \`${duo[1].name} -${MID} HP\``);
-          duo[0].charge = 0;
           duo[1].dmg += MID;
+          duo[0].charge = 0;
           duo[1].charge++;
           break;
         case 'D - W':
@@ -479,45 +478,48 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
           duo[1].charge++;
           break;
         case 'S - W':
-          story.push(`${duo[0].name} performs a special attack on ${duo[1].name} while they wind up. \`${duo[1].name} -${HIGH} HP\``);
-          duo[1].dmg += HIGH;
-          duo[0].charge--;
+          story.push(`while ${duo[1].name} is winding up,`);
+          story.push(`${duo[0].name} performs ${duo[0].charge}x special! \`${duo[1].name} -${special0} HP\``);
+          duo[1].dmg += special0;
+          duo[0].charge = 0;
           duo[1].charge++;
           break;
         case 'W - W':
-          story.push(`${duo[0].name} and ${duo[1].name} are winding up...`);
+          story.push(`${duo[0].name} and ${duo[1].name} are winding up.`);
           duo[0].charge++;
           duo[1].charge++;
           break;
         case 'A - S':
           story.push(`${duo[0].name} hits ${duo[1].name} \`-${MID} HP\``);
-          story.push(`while ${duo[1].name} counters with their special attack! \`${duo[0].name} -${HIGH} HP\``);
-          duo[0].dmg += HIGH;
+          story.push(`while ${duo[1].name} counters with ${duo[1].charge}x special attack! \`${duo[0].name} -${special1} HP\``);
+          duo[0].dmg += special1;
           duo[1].dmg += MID;
           duo[0].charge = 0;
-          duo[1].charge--;
+          duo[1].charge = 0;
           break;
         case 'D - S':
-          story.push(`${duo[1].name} attacks desperately,`);
+          story.push(`${duo[1].name} attempts their special,`);
           story.push(`but ${duo[0].name} parries and counter-attacks! \`${duo[1].name} -${HIGH} HP\``);
+          // skip multiplier on counter attack (for now?)
           duo[1].dmg += HIGH;
           duo[0].charge = 0;
-          duo[1].charge--;
+          duo[1].charge = 0;
           break;
         case 'S - S':
-          story.push(`${duo[0].name} and ${duo[1].name} perform their specials. \`both -${HIGH} HP\``);
-          duo[0].dmg += HIGH;
-          duo[1].dmg += HIGH;
-          duo[0].charge--;
-          duo[1].charge--;
+          story.push(`${duo[0].name} performs ${duo[0].charge}x special, \`${duo[1].name} -${special0} HP\``);
+          story.push(`while ${duo[1].name} hits back with ${duo[1].charge}x special! \`${duo[0].name} -${special1} HP\``);
+          duo[0].dmg += special1;
+          duo[1].dmg += special0;
+          duo[0].charge = 0;
+          duo[1].charge = 0;
           break;
         default:
           console.error(`conflict: what is '${moves}'?`);
           story.push(`Something unexpected happened, causing psychic damage. \`both -${LOW} HP\``);
           duo[0].dmg += LOW;
           duo[1].dmg += LOW;
-          duo[0].charge--;
-          duo[1].charge--;
+          duo[0].charge = 0;
+          duo[1].charge = 0;
       }
       // clamp charges
       duo[0].charge = Math.max(0, Math.min(duo[0].charge, MAX_CHARGE));
