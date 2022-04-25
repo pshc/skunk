@@ -37,7 +37,7 @@ interface ActionButton {
   enabled?: boolean,
 }
 
-export async function showRules(arena: Arena, playerId: PlayerId, interaction: CommandInteraction) {
+export async function showRules(interaction: ButtonInteraction) {
   const content = `>>> Choose ${TURNS_PER_ROUND} actions per round
 Start with \`${STARTING_HP} HP\`
 🗡️ deals \`${MID}\`, or \`${LOW}\` when blocked 🛡️

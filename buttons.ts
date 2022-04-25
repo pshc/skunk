@@ -46,7 +46,7 @@ async function dispatch(interaction: ButtonInteraction) {
     await chooseAction(arena, playerId, duelId, round, act, interaction);
 
   } else if (payload === 'rules') {
-    await showRules(arena, playerId, interaction);
+    await showRules(interaction);
 
   } else {
     console.error(`unknown button customId: ${customId}`);
