@@ -37,6 +37,17 @@ interface ActionButton {
   enabled?: boolean,
 }
 
+export async function showRules(arena: Arena, playerId: PlayerId, interaction: CommandInteraction) {
+  const content = `>>> Choose ${TURNS_PER_ROUND} actions per round
+Start with \`${STARTING_HP} HP\`
+🗡️ deals \`${MID}\`, or \`${LOW}\` when blocked 🛡️
+🔥 increases windup to max of ${MAX_CHARGE}, use it ☄️ or lose it
+☄️ deals \`${HIGH} × windup\` if not blocked
+🛡️ parries ☄️ and counters for \`${HIGH}\`
+`;
+  interaction.reply({ content, ephemeral: true });
+}
+
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('duel')
   .setDescription('Display the current duel.');

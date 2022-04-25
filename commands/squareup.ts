@@ -3,7 +3,6 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, MessageButton } from 'discord.js';
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
-import { chooseOne } from '../utils';
 import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage, emptySelections } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -183,6 +182,10 @@ export function makeChallengeButtons(arena: Arena, duelId: number, state: 'activ
         .setEmoji('🏮')
         .setStyle(state === 'active' ? 'PRIMARY' : 'SECONDARY')
         .setDisabled(state === 'fighting'),
+      new MessageButton()
+        .setCustomId(`${arena}:rules`)
+        .setLabel('Rules')
+        .setStyle('SECONDARY')
     );
   return [row];
 }
