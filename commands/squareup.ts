@@ -179,8 +179,8 @@ export function makeChallengeButtons(arena: Arena, duelId: number, state: 'activ
     .addComponents(
       new MessageButton()
         .setCustomId(`${arena}:challenge:${duelId}`)
-        .setLabel('Accept')
-        .setEmoji('⚔️')
+        .setLabel(state === 'fighting' ? 'Accepted' : 'Accept')
+        .setEmoji('🏮')
         .setStyle(state === 'active' ? 'PRIMARY' : 'SECONDARY')
         .setDisabled(state === 'fighting'),
     );
