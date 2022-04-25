@@ -61,7 +61,7 @@ export async function stepDown(arena: Arena, playerId: PlayerId, interaction: Co
     if (challengeMessage) {
       await interaction.deferReply({ ephemeral: true });
       // enable the fight button again
-      const components = makeChallengeButtons(arena, nextDuel, true);
+      const components = makeChallengeButtons(arena, nextDuel, 'idle');
       await challengeMessage.edit({ content, components });
       await interaction.editReply("You stepped down.");
     } else {

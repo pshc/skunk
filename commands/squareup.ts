@@ -54,9 +54,8 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
   // first try to become the defender, or else become the challenger
   if (await redis.setnx(defenderKey, playerId)) {
     // create a challenge button on the reply
-    const verbed = chooseOne(['has squared up', 'has stepped up', 'stepped up to the plate', 'seeks a challenge', 'is looking to fight']);
-    const content = `${name} ${verbed}.`;
-    const components = makeChallengeButtons(arena, nextDuel, true);
+    const content = `${name} offers a duel.`;
+    const components = makeChallengeButtons(arena, nextDuel, 'active');
     const message = await interaction.reply({ content, components, fetchReply: true });
     if (!(message instanceof Message)) {
       console.error('fetchReply returned something unexpected');
@@ -81,11 +80,11 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
 
     // someone is already squared up, try to start a fight
     if (playerId === defenderId) {
-      await interaction.reply({ content: 'You are already squared up!', ephemeral: true });
+      await interaction.reply({ content: 'You are already up for a duel.', ephemeral: true });
     } else if (await redis.setnx(challengerKey, playerId)) {
       // challenge accepted!
-      const content = `Get ready! ${challengerMention} accepted ${defenderMention}'s challenge.`;
-      const components = makeChallengeButtons(arena, nextDuel, false);
+      const content = `${challengerMention} VS ${defenderMention}`;
+      const components = makeChallengeButtons(arena, nextDuel, 'fighting');
 
       // update the existing challenge message
       if (interaction instanceof ButtonInteraction) {
@@ -95,7 +94,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
         if (challengeMessage) {
           await interaction.deferReply({ ephemeral: true });
           await challengeMessage.edit({ content, components });
-          await interaction.editReply("You accepted the challenge!");
+          await interaction.editReply("Challenge accepted.");
         } else {
           // fallback if we don't have a cached message
           await interaction.reply({ content });
@@ -122,7 +121,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
       }, FIGHT_START_DELAY);
 
     } else {
-      await interaction.reply({ content: 'Sorry, the challenge was taken or abandoned!', ephemeral: true });
+      await interaction.reply({ content: "404 duel not found.", ephemeral: true });
     }
   }
 }
@@ -175,14 +174,15 @@ function expireChallengeMessage(duelId: number, messageId: string) {
   }
 }
 
-export function makeChallengeButtons(arena: Arena, duelId: number, fight: boolean): MessageActionRow[] {
+export function makeChallengeButtons(arena: Arena, duelId: number, state: 'active' | 'idle' | 'fighting'): MessageActionRow[] {
   const row = new MessageActionRow()
     .addComponents(
       new MessageButton()
         .setCustomId(`${arena}:challenge:${duelId}`)
+        .setLabel('Accept')
         .setEmoji('⚔️')
-        .setStyle(fight ? 'PRIMARY' : 'SECONDARY')
-        .setDisabled(!fight),
+        .setStyle(state === 'active' ? 'PRIMARY' : 'SECONDARY')
+        .setDisabled(state === 'fighting'),
     );
   return [row];
 }
