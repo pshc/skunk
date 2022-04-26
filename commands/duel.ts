@@ -484,9 +484,7 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
       // to reduce case analysis, swap actions to be alphabetical
       const swapped = a.acts[i] > b.acts[i];
       if (swapped) {
-        const temp = b;
-        b = a;
-        a = temp;
+        [a, b] = [b, a];
       }
       const moves = `${a.acts[i]} - ${b.acts[i]}`;
       const specialA = HIGH * a.charge;
@@ -570,9 +568,7 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
       b.charge = Math.max(0, Math.min(b.charge, MAX_CHARGE));
       // now swap back if necessary
       if (swapped) {
-        const temp = b;
-        b = a;
-        a = temp;
+        [a, b] = [b, a];
       }
 
       damage.defender = a.dmg;
