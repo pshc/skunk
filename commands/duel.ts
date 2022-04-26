@@ -240,7 +240,7 @@ export async function chooseAction(
   const roundLock = `${arena}:duel:round:${round}:lock`;
   if (!await redis.setnx(roundLock, playerId)) {
     // try one more time
-    await sleep(1);
+    await sleep(100);
     if (!await redis.setnx(roundLock, playerId)) {
       await interaction.reply({ content: 'Locking bug, please try again.', ephemeral: true });
       return;
