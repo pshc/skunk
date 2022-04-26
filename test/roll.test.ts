@@ -7,9 +7,23 @@ import type { Reply } from '../api';
 const userId = () => SnowflakeUtil.generate();
 
 // note, this conflicts with ava's parallel tests, since we use the global object...
-test.before('mock redis', () => {
-  (global as any).redis = require('async-redis-mock').createClient();
+test.before('integrate redis', async () => {
+  (global as any).redis = require('async-redis').createClient();
+  await cleanUpTestRedis();
 });
+
+// could skip this in CI
+test.after('clean up redis', async () => {
+  await cleanUpTestRedis();
+  const { redis } = global as any;
+  await redis.quit();
+});
+
+async function cleanUpTestRedis() {
+  const { redis } = global as any;
+  const keys = await redis.keys('test100:*'); // slow method
+  await Promise.all(keys.map((key: string) => redis.del(key)));
+}
 
 test('can roll 100', async (t) => {
   const arena = 'test100';

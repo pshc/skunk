@@ -24,7 +24,6 @@
     "@types/async-redis": "1",
     "@typescript-eslint/eslint-plugin": "5",
     "@typescript-eslint/parser": "5",
-    "async-redis-mock": "2",
     "ava": "4",
     "eslint": "8",
     "typescript": "4"
