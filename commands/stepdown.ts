@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { CommandInteraction } from 'discord.js';
-import type { Arena, PlayerId } from '../api';
+import type { Arena, PlayerId, Redis } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { chooseOne } from '../utils';
 import { CHALLENGE_MSG_CACHE, makeChallengeButtons } from './squareup';
@@ -17,7 +17,7 @@ export async function execute(interaction: CommandInteraction) {
 
 export async function stepDown(arena: Arena, playerId: PlayerId, interaction: CommandInteraction) {
   // DRY with squareup
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
   const name = (await redis.HGET(namesKey, playerId)) || '???';
 
@@ -39,7 +39,7 @@ export async function stepDown(arena: Arena, playerId: PlayerId, interaction: Co
   if (playerId === defenderId) {
     await redis.DEL(defenderKey);
     // if you flee a challenger, they become the new defender
-    if (await redis.EXISTS(challengerKey)) {
+    if (challengerId) {
       await redis.RENAMENX(challengerKey, defenderKey);
       const newDefenderName = (await redis.HGET(namesKey, challengerId)) || '???';
       content = `${name} has fled from ${newDefenderName}.`;

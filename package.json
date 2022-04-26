@@ -14,17 +14,15 @@
   "dependencies": {
     "@discordjs/builders": "0.13",
     "@discordjs/rest": "0.4",
-    "async-redis": "2.0",
     "discord-api-types": "0.31",
     "discord.js": "13",
-    "dotenv": "16"
+    "dotenv": "16",
+    "ioredis": "5"
   },
   "devDependencies": {
     "@ava/typescript": "3",
-    "@types/async-redis": "1",
     "@typescript-eslint/eslint-plugin": "5",
     "@typescript-eslint/parser": "5",
-    "async-redis-mock": "2",
     "ava": "4",
     "eslint": "8",
     "typescript": "4"

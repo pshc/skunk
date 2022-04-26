@@ -2,7 +2,7 @@ import { promises as fsAsync } from 'fs';
 import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import type { Arena, PlayerId, Reply } from '../api';
+import type { Arena, PlayerId, Redis, Reply } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { Sorry, chooseOne } from '../utils';
 
@@ -20,7 +20,7 @@ export async function execute(interaction: CommandInteraction) {
 }
 
 export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Promise<number[]> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const name = (await redis.HGET(`${arena}:names`, playerId)) || '???';
 
   // prevent consecutive rolls
@@ -279,7 +279,7 @@ interface Doubler {
 }
 
 export async function loadDoubler(arena: string): Promise<Doubler> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
 
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
@@ -292,7 +292,7 @@ export async function loadDoubler(arena: string): Promise<Doubler> {
 }
 
 async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
 
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
@@ -305,13 +305,13 @@ async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
   tx.SET(doublerKey, name);
   tx.SET(streakKey, '1');
   tx.SET(tokenKey, token);
-  await tx.EXEC();
+  await tx.exec();
 
   return { name, streak: 1, token };
 }
 
 async function increaseDoublerStreak(arena: string, doubler: Doubler) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
   doubler.streak = Number(await redis.INCR(streakKey));

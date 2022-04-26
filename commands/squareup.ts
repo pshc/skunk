@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, MessageButton } from 'discord.js';
-import type { Arena, PlayerId } from '../api';
+import type { Arena, PlayerId, Redis } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage, emptySelections } from './duel';
 
@@ -26,7 +26,7 @@ let PENDING_FIGHT: ReturnType<typeof setTimeout> | undefined;
 type EitherInteraction = CommandInteraction | ButtonInteraction;
 
 export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId: number | 'next', interaction: EitherInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
   const mentionsKey = `${arena}:mentions`;
   const name: string = (await redis.HGET(namesKey, playerId)) || '???';
@@ -68,7 +68,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
   } else {
     const defenderId: PlayerId | null = await redis.GET(defenderKey);
     assert(defenderId, 'Opponent disappeared!');
-    const defenderName: string | null = await redis.HGET(namesKey, defenderId);
+    const defenderName: string | undefined = await redis.HGET(namesKey, defenderId);
     assert(defenderName, 'Opponent disappeared!');
 
     // load up discord @mention
@@ -126,7 +126,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
 }
 
 async function startFight(arena: Arena, duelId: number, defender: Duelist, challenger: Duelist, interaction: EitherInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   // DRY
   const duelCountKey = `${arena}:duel:count`;
   const activeKey = `${arena}:duel:active`;
@@ -139,7 +139,7 @@ async function startFight(arena: Arena, duelId: number, defender: Duelist, chall
   assert(challenger.id === await redis.GET(challenger.key), 'wrong challenger');
 
   // activate the duel
-  if (!await redis.SETNX(activeKey, duelId)) {
+  if (!await redis.SETNX(activeKey, duelId.toString())) {
     console.warn(`duel ${duelId} was already active?!`);
     return;
   }

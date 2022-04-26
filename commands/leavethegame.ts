@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import { lookupArena } from '../api';
+import { Redis, lookupArena } from '../api';
+import { Sorry } from '../utils';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('leavethegame')
@@ -9,19 +10,17 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
 data.addStringOption(option => option.setName('yesimeanit').setDescription('Type "yesimeanit" here to confirm.').setRequired(true));
 
 export async function execute(interaction: CommandInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const arena = lookupArena(interaction);
   const { user } = interaction;
   if (interaction.options.getString('yesimeanit') !== 'yesimeanit') {
-    await interaction.reply({ content: "Are you sure?", ephemeral: true });
-    return;
+    throw new Sorry("Are you sure?");
   }
 
   // does the discord user have an associated player?
   const playerId = await redis.HGET(`${arena}:discord_users`, user.id);
-  if (!Number(playerId)) {
-    await interaction.reply({ content: "You don't have an account.", ephemeral: true });
-    return;
+  if (playerId === undefined) {
+    throw new Sorry("You don't have an account.");
   }
 
   // okay, try to remove them

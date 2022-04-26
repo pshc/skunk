@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, InteractionReplyOptions, Message, MessageActionRow, MessageButton } from 'discord.js';
-import type { Arena, PlayerId } from '../api';
+import type { Arena, PlayerId, Redis } from '../api';
 import { lookupArena } from '../api';
 import { Sorry, possessive, sleep } from '../utils';
 
@@ -59,7 +59,7 @@ export async function execute(interaction: CommandInteraction) {
 
 /// Re-render the duel state display from scratch.
 export async function showCurrentDuel(arena: Arena, interaction: CommandInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
 
   // DRY
@@ -101,7 +101,7 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const msg = duelMessage(arena, Number(duelId), round, defender, challenger, 'picking');
   // typescript why?
   const reply = <any>await interaction.reply({ fetchReply: true, ...msg });
-  cacheDuelMessage(reply, arena, duelId, round);
+  cacheDuelMessage(reply, arena, Number(duelId), round);
 }
 
 /// Generates current duel round and status in discord data structures.
@@ -228,7 +228,7 @@ export async function chooseAction(
   chosenActs: string,
   interaction: ButtonInteraction,
 ) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
 
   // DRY

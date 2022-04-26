@@ -1,18 +1,29 @@
+import { strict as assert } from 'assert';
 import { readdirSync } from 'fs';
 import { Client, Collection, CommandInteraction, Intents } from 'discord.js';
-import type { AsyncRedis } from 'async-redis';
+import { Redis } from 'ioredis';
 import type { Command } from './api';
 import { handleButton } from './buttons';
 import { Sorry } from './utils';
 
 require('dotenv').config();
 const {
+  DISCORD_BOT_TOKEN,
   DISCORD_CHANNEL_ID,
+  REDIS_URL,
 } = process.env;
 
-// provide a global persistent redis store in `global.redis`
-const redis: AsyncRedis = require('async-redis').createClient();
-(global as any).redis = redis;
+async function bot() {
+  assert(DISCORD_BOT_TOKEN, 'DISCORD_BOT_TOKEN missing from .env');
+
+  // provide a global persistent redis store in `global.redis`
+  const redis: Redis = new Redis(REDIS_URL);
+  await redis.connect();
+  (global as any).redis = redis;
+
+  // great, connect to discord
+  client.login(DISCORD_BOT_TOKEN);
+}
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 
@@ -69,16 +80,23 @@ async function handleCommand(interaction: CommandInteraction) {
     }
     if (error && error['code'] === 10062) {
       console.error('Another instance of the bot is already running?');
-      process.exit(1);
+      await shutdown(1);
     }
     const content = (error && error.message) || 'There was an error while executing this command!';
     await interaction.reply({ content, ephemeral: true });
   }
 }
 
+async function shutdown(code?: number) {
+  const redis: Redis = (global as any).redis;
+  // wait for writes to complete
+  await redis.quit();
+  process.exit(code);
+}
+
 if (require.main === module) {
-  const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token)
-    throw new Error('DISCORD_BOT_TOKEN missing from .env!');
-  client.login(token);
+  bot().catch(e => {
+    console.error(e);
+    process.exit(1);
+  });
 }
