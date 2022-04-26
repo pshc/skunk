@@ -21,36 +21,36 @@ export async function execute(interaction: CommandInteraction) {
 
 export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Promise<number[]> {
   const { redis } = global as any;
-  const name = (await redis.hget(`${arena}:names`, playerId)) || '???';
+  const name = (await redis.HGET(`${arena}:names`, playerId)) || '???';
 
   // prevent consecutive rolls
   const prevKey = `${arena}:maiden:previous_roller`;
-  const prevRoller = await redis.get(prevKey);
+  const prevRoller = await redis.GET(prevKey);
   if (prevRoller === playerId) {
     throw new Sorry('The dice are hot!');
   }
 
   // load the game state
   const countKey = `${arena}:maiden:dice_count`;
-  let diceCount = Number(await redis.get(countKey));
+  let diceCount = Number(await redis.GET(countKey));
   if (!diceCount || diceCount < 1) {
-    await redis.set(countKey, '1');
+    await redis.SET(countKey, '1');
     diceCount = 1;
   }
 
   // hundo is the last person to roll a 100
   const hundoKey = `${arena}:maiden:hundo`;
-  let hundo = await redis.get(hundoKey);
+  let hundo = await redis.GET(hundoKey) || '<nobody>';
   // add more sigils for consecutive 100s
   const hundoStreakKey = `${hundoKey}_streak`;
-  let hundoStreak: number = Number(await redis.get(hundoStreakKey));
+  let hundoStreak: number = Number(await redis.GET(hundoStreakKey));
 
   // Pooper is the last person to roll a 1
   const pooperKey = `${arena}:maiden:pooper`;
-  let latestPooper = await redis.get(pooperKey);
+  let latestPooper = await redis.GET(pooperKey) || '<nobody>';
   // pooper streak
   const poopSuiteKey = `${pooperKey}_streak`;
-  let poopSuite: number = Number(await redis.get(poopSuiteKey));
+  let poopSuite: number = Number(await redis.GET(poopSuiteKey));
 
   // last person to roll doubles
   let doubler = await loadDoubler(arena);
@@ -67,22 +67,22 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
       if (name !== hundo) {
         hundo = name;
         hundoStreak = 1;
-        await redis.set(hundoKey, hundo);
-        await redis.set(hundoStreakKey, '1');
+        await redis.SET(hundoKey, hundo);
+        await redis.SET(hundoStreakKey, '1');
       } else {
         // track consecutive 100s rolled by the same player
-        hundoStreak = Number(await redis.incr(hundoStreakKey));
+        hundoStreak = Number(await redis.INCR(hundoStreakKey));
       }
     }
     if (roll === 1) {
       if (name !== latestPooper) {
         latestPooper = name;
         poopSuite = 1;
-        await redis.set(pooperKey, latestPooper);
-        await redis.set(poopSuiteKey, '1');
+        await redis.SET(pooperKey, latestPooper);
+        await redis.SET(poopSuiteKey, '1');
       } else {
         // track consecutive ones rolled by the same player
-        poopSuite = Number(await redis.incr(poopSuiteKey));
+        poopSuite = Number(await redis.INCR(poopSuiteKey));
       }
     }
     rolls.push(roll);
@@ -102,22 +102,22 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
   {
     // update daily records
     const today = dayRollKey(arena, 'today');
-    const dailyHigh = Number(await redis.get(`${today}:score`));
-    const dailyLow = Number(await redis.get(`${today}:low`));
+    const dailyHigh = Number(await redis.GET(`${today}:score`));
+    const dailyLow = Number(await redis.GET(`${today}:low`));
     // expire these keys a month from now
     const expiry = 60 * 60 * 24 * 30;
 
     if (!dailyHigh || dailyHigh < sum) {
       const tx = redis.multi();
-      tx.setex(`${today}:score`, expiry, sum);
-      tx.setex(`${today}:name`, expiry, name);
+      tx.SETEX(`${today}:score`, expiry, sum.toString());
+      tx.SETEX(`${today}:name`, expiry, name);
       await tx.exec();
       dailyTrend = !!dailyHigh ? 'higher' : 'new day';
     }
     if (!dailyLow || dailyLow > sum) {
       const tx = redis.multi();
-      tx.setex(`${today}:low`, expiry, sum);
-      tx.setex(`${today}:low_name`, expiry, name);
+      tx.SETEX(`${today}:low`, expiry, sum.toString());
+      tx.SETEX(`${today}:low_name`, expiry, name);
       await tx.exec();
       if (!dailyTrend) {
         dailyTrend = 'lower';
@@ -127,25 +127,25 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
 
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
-  const champ = await redis.get(`${yesterday}:name`);
+  const champ = await redis.GET(`${yesterday}:name`) || '<nobody>';
   // award brick to yesterday's low roller
-  const brick = await redis.get(`${yesterday}:low_name`);
+  const brick = await redis.GET(`${yesterday}:low_name`) || '<nobody>';
   const adorn = (name: string) =>
     adornName({ name, champ, brick, hundo, hundoStreak, pooper: latestPooper, poopSuite, doubler });
 
   // track speedy rolling with an expiring key
   const speedKey = `${arena}:speed`;
-  const speedRolling = Number(await redis.get(speedKey)) || 0;
+  const speedRolling = Number(await redis.GET(speedKey)) || 0;
   let tx = redis.multi();
-  tx.incr(speedKey);
-  tx.expire(speedKey, FAST_COOLDOWN);
+  tx.INCR(speedKey);
+  tx.EXPIRE(speedKey, FAST_COOLDOWN);
   await tx.exec();
 
   // announce result
   if (isMaxRoll) {
-    await redis.incr(countKey); // increase target number of dice
+    await redis.INCR(countKey); // increase target number of dice
     await reply(`${adorn(name)} MAX ROLL: \`${rolls}\` Result: ${sum}`);
-    await redis.del(prevKey);
+    await redis.DEL(prevKey);
   } else {
     const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
     const trend = dailyTrendMarker(dailyTrend);
@@ -153,22 +153,22 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
 
     await reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
     // don't let them re-roll consecutively
-    await redis.set(prevKey, playerId);
+    await redis.SET(prevKey, playerId);
   }
 
   // statistics
   await Promise.all([
     (async () => {
       // update all-time high score
-      const oldHighScore = Number(await redis.get(`${arena}:maiden:high_score`));
+      const oldHighScore = Number(await redis.GET(`${arena}:maiden:high_score`));
       if (!oldHighScore || oldHighScore < sum) {
-        await redis.set(`${arena}:maiden:high_score`, sum);
-        await redis.set(`${arena}:maiden:high_name`, name);
+        await redis.SET(`${arena}:maiden:high_score`, sum);
+        await redis.SET(`${arena}:maiden:high_name`, name);
       }
     })(),
     (async () => {
       // update roll count
-      await redis.hincrby(`${arena}:maiden:roll_counts`, playerId, 1);
+      await redis.HINCRBY(`${arena}:maiden:roll_counts`, playerId, 1);
     })(),
     (async () => {
       // record the roll
@@ -285,9 +285,9 @@ export async function loadDoubler(arena: string): Promise<Doubler> {
   const streakKey = `${doublerKey}_streak`;
   const tokenKey = `${doublerKey}_token`;
 
-  const name = await redis.get(doublerKey);
-  const streak = Number(await redis.get(streakKey));
-  const token = await redis.get(tokenKey);
+  const name = await redis.GET(doublerKey) || '<nobody>';
+  const streak = Number(await redis.GET(streakKey));
+  const token = await redis.GET(tokenKey) || '✌️';
   return { name, streak, token };
 }
 
@@ -302,10 +302,10 @@ async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
   const token = chooseOne(DOUBLES);
 
   const tx = redis.multi();
-  tx.set(doublerKey, name);
-  tx.set(streakKey, '1');
-  tx.set(tokenKey, token);
-  await tx.exec();
+  tx.SET(doublerKey, name);
+  tx.SET(streakKey, '1');
+  tx.SET(tokenKey, token);
+  await tx.EXEC();
 
   return { name, streak: 1, token };
 }
@@ -314,7 +314,7 @@ async function increaseDoublerStreak(arena: string, doubler: Doubler) {
   const { redis } = global as any;
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
-  doubler.streak = Number(await redis.incr(streakKey));
+  doubler.streak = Number(await redis.INCR(streakKey));
 }
 
 function seasonalToken(): string {

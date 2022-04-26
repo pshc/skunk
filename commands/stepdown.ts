@@ -19,35 +19,35 @@ export async function stepDown(arena: Arena, playerId: PlayerId, interaction: Co
   // DRY with squareup
   const { redis } = global as any;
   const namesKey = `${arena}:names`;
-  const name = (await redis.hget(namesKey, playerId)) || '???';
+  const name = (await redis.HGET(namesKey, playerId)) || '???';
 
   const duelCountKey = `${arena}:duel:count`
   const activeKey = `${arena}:duel:active`;
   const defenderKey = `${arena}:duel:defender`;
   const challengerKey = `${arena}:duel:challenger`;
 
-  if (await redis.get(activeKey)) {
+  if (await redis.GET(activeKey)) {
     await interaction.reply({ content: 'Sorry, a duel is already active.', ephemeral: true });
     return;
   }
   // end DRY
 
-  const [defenderId, challengerId] = await Promise.all([redis.get(defenderKey), redis.get(challengerKey)]);
+  const [defenderId, challengerId] = await Promise.all([redis.GET(defenderKey), redis.GET(challengerKey)]);
   const left = chooseOne(['stepped down', 'backed away', 'pulled out', 'abandoned the fight']);
   let content;
 
   if (playerId === defenderId) {
-    await redis.del(defenderKey);
+    await redis.DEL(defenderKey);
     // if you flee a challenger, they become the new defender
-    if (await redis.exists(challengerKey)) {
-      await redis.renamenx(challengerKey, defenderKey);
-      const newDefenderName = (await redis.hget(namesKey, challengerId)) || '???';
+    if (await redis.EXISTS(challengerKey)) {
+      await redis.RENAMENX(challengerKey, defenderKey);
+      const newDefenderName = (await redis.HGET(namesKey, challengerId)) || '???';
       content = `${name} has fled from ${newDefenderName}.`;
     } else {
       content = `${name} has ${left}.`;
     }
   } else if (playerId === challengerId) {
-    await redis.del(challengerKey);
+    await redis.DEL(challengerKey);
     content = `${name} has ${left}.`;
   } else {
     await interaction.reply({ content: "You aren't squared up yet.", ephemeral: true });
@@ -56,7 +56,7 @@ export async function stepDown(arena: Arena, playerId: PlayerId, interaction: Co
 
   // update the challenge message accordingly
   if (content) {
-    const nextDuel = Number(await redis.get(duelCountKey));
+    const nextDuel = Number(await redis.GET(duelCountKey));
     const challengeMessage = CHALLENGE_MSG_CACHE.get(nextDuel);
     if (challengeMessage) {
       await interaction.deferReply({ ephemeral: true });

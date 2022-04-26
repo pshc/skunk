@@ -29,20 +29,20 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
   const { redis } = global as any;
   const namesKey = `${arena}:names`;
   const mentionsKey = `${arena}:mentions`;
-  const name: string = (await redis.hget(namesKey, playerId)) || '???';
+  const name: string = (await redis.HGET(namesKey, playerId)) || '???';
 
   const duelCountKey = `${arena}:duel:count`; // ID of the next duel
   const activeKey = `${arena}:duel:active`; // ID of the current duel, if one is happening
   const defenderKey = `${arena}:duel:defender`; // player ID
   const challengerKey = `${arena}:duel:challenger`; // player ID
 
-  if (await redis.get(activeKey) !== null) {
+  if (await redis.GET(activeKey) !== null) {
     await interaction.reply({ content: 'Sorry, a duel is already active.', ephemeral: true });
     return;
   }
 
   // once the challenge is accepted, a duel will be created with id `nextDuel`
-  const nextDuel = Number(await redis.get(duelCountKey));
+  const nextDuel = Number(await redis.GET(duelCountKey));
   // if anyone clicks an old challenge button, remove it
   if (requestedDuelId !== 'next' && requestedDuelId !== nextDuel) {
     assert(interaction instanceof ButtonInteraction);
@@ -51,7 +51,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
   }
 
   // first try to become the defender, or else become the challenger
-  if (await redis.setnx(defenderKey, playerId)) {
+  if (await redis.SETNX(defenderKey, playerId)) {
     // create a challenge button on the reply
     const content = `${name} offers a duel.`;
     const components = makeChallengeButtons(arena, nextDuel, 'active');
@@ -66,21 +66,21 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
     setTimeout(expireChallengeMessage.bind(null, nextDuel, message.id), CHALLENGE_CACHE_EXPIRY);
 
   } else {
-    const defenderId: PlayerId | null = await redis.get(defenderKey);
+    const defenderId: PlayerId | null = await redis.GET(defenderKey);
     assert(defenderId, 'Opponent disappeared!');
-    const defenderName: string | null = await redis.hget(namesKey, defenderId);
+    const defenderName: string | null = await redis.HGET(namesKey, defenderId);
     assert(defenderName, 'Opponent disappeared!');
 
     // load up discord @mention
-    const chaUserId = await redis.hget(mentionsKey, playerId);
+    const chaUserId = await redis.HGET(mentionsKey, playerId);
     const challengerMention = chaUserId ? `<@${chaUserId}>` : name;
-    const defUserId = await redis.hget(mentionsKey, defenderId);
+    const defUserId = await redis.HGET(mentionsKey, defenderId);
     const defenderMention = defUserId ? `<@${defUserId}>` : defenderName;
 
     // someone is already squared up, try to start a fight
     if (playerId === defenderId) {
       await interaction.reply({ content: 'You are already up for a duel.', ephemeral: true });
-    } else if (await redis.setnx(challengerKey, playerId)) {
+    } else if (await redis.SETNX(challengerKey, playerId)) {
       // challenge accepted!
       const content = `${challengerMention} VS ${defenderMention}`;
       const components = makeChallengeButtons(arena, nextDuel, 'fighting');
@@ -133,27 +133,27 @@ async function startFight(arena: Arena, duelId: number, defender: Duelist, chall
   const roundKey = `${arena}:duel:round`;
 
   // but first, check that the fight is on as expected
-  const nextDuel = Number(await redis.get(duelCountKey));
+  const nextDuel = Number(await redis.GET(duelCountKey));
   assert(nextDuel === duelId, 'wrong duel id');
-  assert(defender.id === await redis.get(defender.key), 'wrong defender');
-  assert(challenger.id === await redis.get(challenger.key), 'wrong challenger');
+  assert(defender.id === await redis.GET(defender.key), 'wrong defender');
+  assert(challenger.id === await redis.GET(challenger.key), 'wrong challenger');
 
   // activate the duel
-  if (!await redis.setnx(activeKey, duelId)) {
+  if (!await redis.SETNX(activeKey, duelId)) {
     console.warn(`duel ${duelId} was already active?!`);
     return;
   }
   // set up initial duel state
   const round = 1;
   const tx = redis.multi();
-  tx.incr(duelCountKey);
-  tx.set(roundKey, round);
-  tx.set(`${defender.key}:hp`, defender.hp);
-  tx.set(`${challenger.key}:hp`, challenger.hp);
-  tx.set(`${defender.key}:charge`, 0);
-  tx.set(`${challenger.key}:charge`, 0);
-  tx.del(`${defender.key}:action`);
-  tx.del(`${challenger.key}:action`);
+  tx.INCR(duelCountKey);
+  tx.SET(roundKey, round);
+  tx.SET(`${challenger.key}:hp`, challenger.hp);
+  tx.SET(`${defender.key}:charge`, 0);
+  tx.SET(`${challenger.key}:charge`, 0);
+  tx.SET(`${defender.key}:hp`, defender.hp);
+  tx.DEL(`${defender.key}:action`);
+  tx.DEL(`${challenger.key}:action`);
   await tx.exec();
 
   // use a follow-up message to print the starting state

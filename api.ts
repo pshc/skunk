@@ -25,7 +25,7 @@ export function lookupArena(interaction: Interaction): Arena {
 
 export async function lookupPlayerId(arena: Arena, interaction: Interaction): Promise<PlayerId> {
   const { redis } = global as any;
-  const playerId = await redis.hget(`${arena}:discord_users`, interaction.user.id);
+  const playerId = await redis.HGET(`${arena}:discord_users`, interaction.user.id);
   if (!playerId) {
     throw new Error('Not playing; please /jointhegame first');
   }

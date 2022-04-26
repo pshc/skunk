@@ -18,7 +18,7 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   // does the discord user have an associated player?
-  const playerId = await redis.hget(`${arena}:discord_users`, user.id);
+  const playerId = await redis.HGET(`${arena}:discord_users`, user.id);
   if (!Number(playerId)) {
     await interaction.reply({ content: "You don't have an account.", ephemeral: true });
     return;
@@ -27,19 +27,21 @@ export async function execute(interaction: CommandInteraction) {
   // okay, try to remove them
   await interaction.deferReply();
   try {
-    const playerName = await redis.hget(`${arena}:names`, playerId);
+    const playerName = await redis.HGET(`${arena}:names`, playerId);
     console.log(`"${playerName}" (${user.id}) is quitting.`);
     const tx = redis.multi();
-    tx.hdel(`${arena}:discord_users`, user.id);
-    tx.hdel(`${arena}:mentions`, playerId);
-    tx.hdel(`${arena}:names`, playerId);
-    tx.hdel(`${arena}:name_lookup`, playerName.toLowerCase());
-    tx.hdel(`${arena}:scores`, playerId);
+    tx.HDEL(`${arena}:discord_users`, user.id);
+    tx.HDEL(`${arena}:mentions`, playerId);
+    tx.HDEL(`${arena}:names`, playerId);
+    if (playerName) {
+      tx.HDEL(`${arena}:name_lookup`, playerName.toLowerCase());
+    }
+    tx.HDEL(`${arena}:scores`, playerId);
     // abandon all their items
     const inventory = `${arena}:inventory:${playerId}`;
     const shelter = `${arena}:abandoned_items`;
-    tx.sunionstore(shelter, shelter, inventory);
-    tx.del(inventory);
+    tx.SUNIONSTORE(shelter, [shelter, inventory]);
+    tx.DEL(inventory);
 
     await tx.exec();
     await interaction.editReply(`**${playerName}** has quit the game!`);

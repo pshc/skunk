@@ -68,10 +68,10 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const defenderKey = `${arena}:duel:defender`;
   const challengerKey = `${arena}:duel:challenger`;
 
-  const duelId = await redis.get(activeKey);
+  const duelId = await redis.GET(activeKey);
   if (duelId === null) {
     let content = 'Please use /squareup to start a new duel.';
-    if (await redis.exists(defenderKey) && await redis.exists(challengerKey)) {
+    if (2 === await redis.EXISTS([defenderKey, challengerKey])) {
       content = 'The duel is starting...';
     }
     await interaction.reply({ content, ephemeral: true });
@@ -79,17 +79,18 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   }
 
   // load up the state (but don't expose the selections)
-  const round = Number(await redis.get(roundKey));
+  const round = Number(await redis.GET(roundKey));
   const fetchDuelist = async (key: string) => {
-    const id = await redis.get(key);
-    const acts = await redis.get(`${key}:action`) || emptySelections();
+    const id = await redis.GET(key);
+    assert(id, `${key} missing`);
+    const acts = await redis.GET(`${key}:action`) || emptySelections();
     const hasChosen = !acts.includes('.');
     return {
       id,
       key,
-      name: await redis.hget(namesKey, id),
-      hp: Number(await redis.get(`${key}:hp`)),
-      charge: Number(await redis.get(`${key}:charge`)),
+      name: await redis.HGET(namesKey, id) || '???',
+      hp: Number(await redis.GET(`${key}:hp`)),
+      charge: Number(await redis.GET(`${key}:charge`)),
       hasChosen,
       acts: emptySelections(), // these are secret, after all
     };
@@ -238,10 +239,10 @@ export async function chooseAction(
 
   // acquire lock before accessing state (in case the other player acts at the same time)
   const roundLock = `${arena}:duel:round:${round}:lock`;
-  if (!await redis.setnx(roundLock, playerId)) {
+  if (!await redis.SETNX(roundLock, playerId)) {
     // try one more time
     await sleep(100);
-    if (!await redis.setnx(roundLock, playerId)) {
+    if (!await redis.SETNX(roundLock, playerId)) {
       await interaction.reply({ content: 'Locking bug, please try again.', ephemeral: true });
       return;
     }
@@ -249,14 +250,14 @@ export async function chooseAction(
   // this is not watertight; if we crash here, we deadlock.
   // later: use a proper lua lock, or maybe WATCH?
   // for now: just hold the lock for a second
-  await redis.expire(roundLock, 1);
+  await redis.EXPIRE(roundLock, 1);
 
   const lockState = {taken: true};
   const releaseLock = async () => {
     // this is also race condition-y...
-    if (lockState.taken && await redis.get(roundLock) === playerId) {
+    if (lockState.taken && await redis.GET(roundLock) === playerId) {
       lockState.taken = false;
-      await redis.del(roundLock);
+      await redis.DEL(roundLock);
     }
   };
 
@@ -266,10 +267,10 @@ export async function chooseAction(
   let state: 'picking' | 'resolved' | 'end';
   let player: 'defender' | 'challenger';
   try {
-    if (duelId !== Number(await redis.get(activeKey))) {
+    if (duelId !== Number(await redis.GET(activeKey))) {
       throw new Sorry('Duel is already finished.');
     }
-    if (round !== Number(await redis.get(roundKey))) {
+    if (round !== Number(await redis.GET(roundKey))) {
       await releaseLock();
       try {
         await interaction.update({ content: 'This round is over.', components: [] });
@@ -280,24 +281,25 @@ export async function chooseAction(
     }
   
     // check that this player is actually in the battle
-    if (playerId === await redis.get(defenderKey)) {
+    if (playerId === await redis.GET(defenderKey)) {
       player = 'defender';
-    } else if (playerId === await redis.get(challengerKey)) {
+    } else if (playerId === await redis.GET(challengerKey)) {
       player = 'challenger';
     } else {
       throw new Sorry('You are not in this duel, sorry!');
     }
 
     // load up the rest of the duelists' state
-    const fetchDuelist = async (key: string) => {
-      const id = await redis.get(key);
-      const acts = await redis.get(`${key}:action`);
+    const fetchDuelist = async (key: string): Promise<Duelist> => {
+      const id = await redis.GET(key);
+      assert(id);
+      const acts = await redis.GET(`${key}:action`);
       return {
         id,
         key,
-        name: await redis.hget(namesKey, id),
-        hp: Number(await redis.get(`${key}:hp`)),
-        charge: Number(await redis.get(`${key}:charge`)),
+        name: await redis.HGET(namesKey, id) || '???',
+        hp: Number(await redis.GET(`${key}:hp`)),
+        charge: Number(await redis.GET(`${key}:charge`)),
         acts: acts ? parseActs(acts) : emptySelections(),
       };
     };
@@ -315,13 +317,13 @@ export async function chooseAction(
 
     if (player === 'defender') {
       defender.acts = parseActs(chosenActs, defender);
-      await redis.set(`${defenderKey}:action`, defender.acts.join(''));
+      await redis.SET(`${defenderKey}:action`, defender.acts.join(''));
 
     } else {
       assert(player === 'challenger');
       challenger.acts = parseActs(chosenActs, challenger);
       challenger.hasChosen = true;
-      await redis.set(`${challengerKey}:action`, challenger.acts.join(''));
+      await redis.SET(`${challengerKey}:action`, challenger.acts.join(''));
     }
     // are we all ready?
     defender.hasChosen = !defender.acts.includes('.');
@@ -334,13 +336,13 @@ export async function chooseAction(
       state = outcome.state;
       // apply damage and set up for next round if necessary
       const tx = redis.multi();
-      tx.del(`${defenderKey}:action`, `${challengerKey}:action`);
-      tx.decrby(`${defenderKey}:hp`, outcome.damage.defender);
-      tx.decrby(`${challengerKey}:hp`, outcome.damage.challenger);
-      tx.set(`${defenderKey}:charge`, outcome.charge.defender);
-      tx.set(`${challengerKey}:charge`, outcome.charge.challenger);
+      tx.DEL([`${defenderKey}:action`, `${challengerKey}:action`]);
+      tx.DECRBY(`${defenderKey}:hp`, outcome.damage.defender);
+      tx.DECRBY(`${challengerKey}:hp`, outcome.damage.challenger);
+      tx.SET(`${defenderKey}:charge`, outcome.charge.defender);
+      tx.SET(`${challengerKey}:charge`, outcome.charge.challenger);
       if (state !== 'end') {
-        tx.incr(roundKey);
+        tx.INCR(roundKey);
       }
       await tx.exec();
 
@@ -349,8 +351,8 @@ export async function chooseAction(
         const channel = interaction.channel;
         if (channel) {
           // store result for printing momentarily
-          const defHp = Number(await redis.get(`${defenderKey}:hp`));
-          const chaHp = Number(await redis.get(`${challengerKey}:hp`));
+          const defHp = Number(await redis.GET(`${defenderKey}:hp`));
+          const chaHp = Number(await redis.GET(`${challengerKey}:hp`));
           let final = `${defender.name} \`[${defHp} HP]\`
 ${challenger.name} \`[${chaHp} HP]\`
 
@@ -369,11 +371,11 @@ ${challenger.name} \`[${chaHp} HP]\`
         }
 
         // and reset everything
-        await redis.del(
+        await redis.DEL([
           activeKey, roundKey,
           defenderKey, `${defenderKey}:hp`, `${defenderKey}:charge`,
           challengerKey, `${challengerKey}:hp`, `${defenderKey}:charge`,
-        );
+        ]);
       }
       // clear checkmarks after battle resolution
       defender.hasChosen = undefined;
@@ -429,10 +431,10 @@ ${challenger.name} \`[${chaHp} HP]\`
     challenger.acts = emptySelections();
     defender.hasChosen = false;
     challenger.hasChosen = false;
-    defender.hp = Number(await redis.get(`${defenderKey}:hp`));
-    challenger.hp = Number(await redis.get(`${challengerKey}:hp`));
-    defender.charge = Number(await redis.get(`${defenderKey}:charge`));
-    challenger.charge = Number(await redis.get(`${challengerKey}:charge`));
+    defender.hp = Number(await redis.GET(`${defenderKey}:hp`));
+    challenger.hp = Number(await redis.GET(`${challengerKey}:hp`));
+    defender.charge = Number(await redis.GET(`${defenderKey}:charge`));
+    challenger.charge = Number(await redis.GET(`${challengerKey}:charge`));
     // send it
     const msg = duelMessage(arena, duelId, round + 1, defender, challenger, 'picking');
     let reply;
