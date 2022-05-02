@@ -2,7 +2,7 @@ import { promises as fsAsync } from 'fs';
 import { randomInt } from 'crypto';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import type { Arena, PlayerId, Reply } from '../api';
+import type { Arena, PlayerId, Redis, Reply } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
 import { Sorry, chooseOne } from '../utils';
 
@@ -20,7 +20,7 @@ export async function execute(interaction: CommandInteraction) {
 }
 
 export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Promise<number[]> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const name = (await redis.hget(`${arena}:names`, playerId)) || '???';
 
   // prevent consecutive rolls
@@ -40,14 +40,14 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
 
   // hundo is the last person to roll a 100
   const hundoKey = `${arena}:maiden:hundo`;
-  let hundo = await redis.get(hundoKey);
+  let hundo = await redis.get(hundoKey) || '<nobody>';
   // add more sigils for consecutive 100s
   const hundoStreakKey = `${hundoKey}_streak`;
   let hundoStreak: number = Number(await redis.get(hundoStreakKey));
 
   // Pooper is the last person to roll a 1
   const pooperKey = `${arena}:maiden:pooper`;
-  let latestPooper = await redis.get(pooperKey);
+  let pooper = await redis.get(pooperKey) || '<nobody>';
   // pooper streak
   const poopSuiteKey = `${pooperKey}_streak`;
   let poopSuite: number = Number(await redis.get(poopSuiteKey));
@@ -75,10 +75,10 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
       }
     }
     if (roll === 1) {
-      if (name !== latestPooper) {
-        latestPooper = name;
+      if (name !== pooper) {
+        pooper = name;
         poopSuite = 1;
-        await redis.set(pooperKey, latestPooper);
+        await redis.set(pooperKey, pooper);
         await redis.set(poopSuiteKey, '1');
       } else {
         // track consecutive ones rolled by the same player
@@ -127,11 +127,11 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
 
   // crown yesterday's high roller
   const yesterday = dayRollKey(arena, 'yesterday');
-  const champ = await redis.get(`${yesterday}:name`);
+  const champ = await redis.get(`${yesterday}:name`) || '<nobody>';
   // award brick to yesterday's low roller
-  const brick = await redis.get(`${yesterday}:low_name`);
+  const brick = await redis.get(`${yesterday}:low_name`) || '<nobody>';
   const adorn = (name: string) =>
-    adornName({ name, champ, brick, hundo, hundoStreak, pooper: latestPooper, poopSuite, doubler });
+    adornName({ name, champ, brick, hundo, hundoStreak, pooper, poopSuite, doubler });
 
   // track speedy rolling with an expiring key
   const speedKey = `${arena}:speed`;
@@ -279,20 +279,20 @@ interface Doubler {
 }
 
 export async function loadDoubler(arena: string): Promise<Doubler> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
 
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
   const tokenKey = `${doublerKey}_token`;
 
-  const name = await redis.get(doublerKey);
+  const name = await redis.get(doublerKey) || '<nobody>';
   const streak = Number(await redis.get(streakKey));
-  const token = await redis.get(tokenKey);
+  const token = await redis.get(tokenKey) || '✌️';
   return { name, streak, token };
 }
 
 async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
 
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
@@ -311,7 +311,7 @@ async function saveNewDoubler(arena: string, name: string): Promise<Doubler> {
 }
 
 async function increaseDoublerStreak(arena: string, doubler: Doubler) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const doublerKey = `${arena}:maiden:doubler`;
   const streakKey = `${doublerKey}_streak`;
   doubler.streak = Number(await redis.incr(streakKey));

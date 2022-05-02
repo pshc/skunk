@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction, Snowflake } from 'discord.js';
-import type { Arena, PlayerId, Reply } from '../api';
+import type { Arena, PlayerId, Redis, Reply } from '../api';
 import { lookupArena } from '../api';
 
 const INITIAL_SCORE = 100;
@@ -20,7 +20,7 @@ export async function execute(interaction: CommandInteraction) {
 }
 
 export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: string, reply: Reply): Promise<PlayerId> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
 
   playerName = sanifyName(playerName);
   assert(!!playerName, "Please provide a valid name.");
@@ -36,7 +36,7 @@ export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: s
   // okay, try to add them
   try {
     console.log(`"${playerName}" (${userId}) is joining the game.`);
-    const playerId = await redis.incr(`${arena}:player_count`);
+    const playerId = String(await redis.incr(`${arena}:player_count`));
     const tx = redis.multi();
     // TODO we should really use WATCH to fail properly on conflict
     tx.hsetnx(`${arena}:discord_users`, userId, playerId);

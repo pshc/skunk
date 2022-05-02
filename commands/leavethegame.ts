@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import { lookupArena } from '../api';
+import { Redis, lookupArena } from '../api';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('leavethegame')
@@ -9,7 +9,7 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
 data.addStringOption(option => option.setName('yesimeanit').setDescription('Type "yesimeanit" here to confirm.').setRequired(true));
 
 export async function execute(interaction: CommandInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const arena = lookupArena(interaction);
   const { user } = interaction;
   if (interaction.options.getString('yesimeanit') !== 'yesimeanit') {
@@ -19,7 +19,7 @@ export async function execute(interaction: CommandInteraction) {
 
   // does the discord user have an associated player?
   const playerId = await redis.hget(`${arena}:discord_users`, user.id);
-  if (!Number(playerId)) {
+  if (!playerId) {
     await interaction.reply({ content: "You don't have an account.", ephemeral: true });
     return;
   }
@@ -33,7 +33,9 @@ export async function execute(interaction: CommandInteraction) {
     tx.hdel(`${arena}:discord_users`, user.id);
     tx.hdel(`${arena}:mentions`, playerId);
     tx.hdel(`${arena}:names`, playerId);
-    tx.hdel(`${arena}:name_lookup`, playerName.toLowerCase());
+    if (playerName) {
+      tx.hdel(`${arena}:name_lookup`, playerName.toLowerCase());
+    }
     tx.hdel(`${arena}:scores`, playerId);
     // abandon all their items
     const inventory = `${arena}:inventory:${playerId}`;

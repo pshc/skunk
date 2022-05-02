@@ -1,5 +1,8 @@
 import type { SlashCommandBuilder } from "@discordjs/builders";
 import type { CommandInteraction, Interaction, InteractionReplyOptions, MessagePayload } from 'discord.js';
+import type { Redis } from 'ioredis';
+
+export type { Redis };
 
 export interface Command {
   data: SlashCommandBuilder,
@@ -24,7 +27,7 @@ export function lookupArena(interaction: Interaction): Arena {
 }
 
 export async function lookupPlayerId(arena: Arena, interaction: Interaction): Promise<PlayerId> {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const playerId = await redis.hget(`${arena}:discord_users`, interaction.user.id);
   if (!playerId) {
     throw new Error('Not playing; please /jointhegame first');

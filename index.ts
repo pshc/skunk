@@ -1,20 +1,29 @@
+import { strict as assert } from 'assert';
 import { readdirSync } from 'fs';
 import { Client, Collection, CommandInteraction, Intents } from 'discord.js';
-import type { AsyncRedis } from 'async-redis';
+import Redis from 'ioredis';
 import type { Command } from './api';
 import { handleButton } from './buttons';
 import { Sorry } from './utils';
 
 require('dotenv').config();
 const {
+  DISCORD_BOT_TOKEN,
   DISCORD_CHANNEL_ID,
+  REDIS_PASSWORD,
 } = process.env;
 
 // provide a global persistent redis store in `global.redis`
-const redis: AsyncRedis = require('async-redis').createClient();
+const redis = new Redis({ password: REDIS_PASSWORD });
 (global as any).redis = redis;
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
+
+function bot() {
+  if (!DISCORD_BOT_TOKEN)
+    throw new Error('DISCORD_BOT_TOKEN missing from .env!');
+  client.login(DISCORD_BOT_TOKEN);
+}
 
 // we will populate this from `dist/commands/*.js`
 const commands: Collection<string, Command> = new Collection();
@@ -77,8 +86,5 @@ async function handleCommand(interaction: CommandInteraction) {
 }
 
 if (require.main === module) {
-  const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token)
-    throw new Error('DISCORD_BOT_TOKEN missing from .env!');
-  client.login(token);
+  bot();
 }

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import { lookupArena } from '../api';
+import { Redis, lookupArena } from '../api';
 import { adornName, dayRollKey, loadDoubler } from './roll';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -8,11 +8,11 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setDescription('Show the xd100 rolling record.');
 
 export async function execute(interaction: CommandInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const arena = lookupArena(interaction);
 
   const highScore = await redis.get(`${arena}:maiden:high_score`);
-  const highName = await redis.get(`${arena}:maiden:high_name`);
+  const highName = await redis.get(`${arena}:maiden:high_name`) || '<nobody>';
 
   const today = dayRollKey(arena, 'today');
   const todayHigh = (await redis.get(`${today}:score`)) || '0';
@@ -27,11 +27,11 @@ export async function execute(interaction: CommandInteraction) {
   const brick = (await redis.get(`${yesterday}:low_name`)) || '<nobody>';
 
   const hundoKey = `${arena}:maiden:hundo`;
-  const hundo = await redis.get(hundoKey);
+  const hundo = await redis.get(hundoKey) || '<nobody>';
   const hundoStreak = Number(await redis.get(`${hundoKey}_streak`));
 
   const pooperKey = `${arena}:maiden:pooper`;
-  const pooper = await redis.get(pooperKey);
+  const pooper = await redis.get(pooperKey) || '<nobody>';
   const poopSuite = Number(await redis.get(`${pooperKey}_streak`));
 
   const doubler = await loadDoubler(arena);

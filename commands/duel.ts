@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, InteractionReplyOptions, Message, MessageActionRow, MessageButton } from 'discord.js';
-import type { Arena, PlayerId } from '../api';
+import type { Arena, PlayerId, Redis } from '../api';
 import { lookupArena } from '../api';
 import { Sorry, possessive, sleep } from '../utils';
 
@@ -59,7 +59,7 @@ export async function execute(interaction: CommandInteraction) {
 
 /// Re-render the duel state display from scratch.
 export async function showCurrentDuel(arena: Arena, interaction: CommandInteraction) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
 
   // DRY
@@ -68,8 +68,8 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const defenderKey = `${arena}:duel:defender`;
   const challengerKey = `${arena}:duel:challenger`;
 
-  const duelId = await redis.get(activeKey);
-  if (duelId === null) {
+  const duelIdStr = await redis.get(activeKey);
+  if (duelIdStr === null) {
     let content = 'Please use /squareup to start a new duel.';
     if (await redis.exists(defenderKey) && await redis.exists(challengerKey)) {
       content = 'The duel is starting...';
@@ -77,17 +77,19 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
     await interaction.reply({ content, ephemeral: true });
     return;
   }
+  const duelId = Number(duelIdStr);
 
   // load up the state (but don't expose the selections)
   const round = Number(await redis.get(roundKey));
-  const fetchDuelist = async (key: string) => {
+  const fetchDuelist = async (key: string): Promise<Duelist> => {
     const id = await redis.get(key);
+    assert(id, 'duelist missing');
     const acts = await redis.get(`${key}:action`) || emptySelections();
     const hasChosen = !acts.includes('.');
     return {
       id,
       key,
-      name: await redis.hget(namesKey, id),
+      name: await redis.hget(namesKey, id) || '???',
       hp: Number(await redis.get(`${key}:hp`)),
       charge: Number(await redis.get(`${key}:charge`)),
       hasChosen,
@@ -97,7 +99,7 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const defender = await fetchDuelist(defenderKey);
   const challenger = await fetchDuelist(challengerKey);
 
-  const msg = duelMessage(arena, Number(duelId), round, defender, challenger, 'picking');
+  const msg = duelMessage(arena, duelId, round, defender, challenger, 'picking');
   // typescript why?
   const reply = <any>await interaction.reply({ fetchReply: true, ...msg });
   cacheDuelMessage(reply, arena, duelId, round);
@@ -227,7 +229,7 @@ export async function chooseAction(
   chosenActs: string,
   interaction: ButtonInteraction,
 ) {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
 
   // DRY
@@ -289,13 +291,14 @@ export async function chooseAction(
     }
 
     // load up the rest of the duelists' state
-    const fetchDuelist = async (key: string) => {
+    const fetchDuelist = async (key: string): Promise<Duelist> => {
       const id = await redis.get(key);
+      assert(id, 'duelist missing');
       const acts = await redis.get(`${key}:action`);
       return {
         id,
         key,
-        name: await redis.hget(namesKey, id),
+        name: await redis.hget(namesKey, id) || '???',
         hp: Number(await redis.get(`${key}:hp`)),
         charge: Number(await redis.get(`${key}:charge`)),
         acts: acts ? parseActs(acts) : emptySelections(),

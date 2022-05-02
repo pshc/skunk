@@ -1,5 +1,6 @@
 import test from 'ava'
 import { SnowflakeUtil } from 'discord.js';
+import Redis from 'ioredis';
 import { joinTheGame } from '../commands/jointhegame';
 import { roll } from '../commands/roll';
 import type { Reply } from '../api';
@@ -8,19 +9,19 @@ const userId = () => SnowflakeUtil.generate();
 
 // note, this conflicts with ava's parallel tests, since we use the global object...
 test.before('integrate redis', async () => {
-  (global as any).redis = require('async-redis').createClient();
+  (global as any).redis = new Redis();
   await cleanUpTestRedis();
 });
 
 // could skip this in CI
 test.after('clean up redis', async () => {
   await cleanUpTestRedis();
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   await redis.quit();
 });
 
 async function cleanUpTestRedis() {
-  const { redis } = global as any;
+  const redis: Redis = (global as any).redis;
   const keys = await redis.keys('test100:*'); // slow method
   await Promise.all(keys.map((key: string) => redis.del(key)));
 }
