@@ -1,4 +1,4 @@
-name: Typechecks and unit tests
+name: Typechecks and integration testing
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  build_and_test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -22,7 +22,7 @@ jobs:
       with:
         redis-version: 6
 
-    - name: Install and test
+    - name: Install deps and test
       run: |
         npm install
         npm run test
