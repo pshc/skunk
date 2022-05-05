@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc && ava dist/test/index.js",
     "start": "tsc && node deploy-commands && node dist/index.js",
-    "clean": "rm -rf -- dist"
+    "clean": "rm -f -- rolls_test*.csv",
+    "distclean": "rm -rf -- dist"
   },
   "author": "uweng",
   "license": "ISC",
