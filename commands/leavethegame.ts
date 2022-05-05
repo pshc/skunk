@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import { Redis, lookupArena } from '../api';
+import { lookupArena } from '../api';
+import { redis } from '../db';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('leavethegame')
@@ -9,7 +10,6 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
 data.addStringOption(option => option.setName('yesimeanit').setDescription('Type "yesimeanit" here to confirm.').setRequired(true));
 
 export async function execute(interaction: CommandInteraction) {
-  const redis: Redis = (global as any).redis;
   const arena = lookupArena(interaction);
   const { user } = interaction;
   if (interaction.options.getString('yesimeanit') !== 'yesimeanit') {

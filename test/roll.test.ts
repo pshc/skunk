@@ -1,22 +1,17 @@
 import test from 'ava'
 import { SnowflakeUtil } from 'discord.js';
-import Redis from 'ioredis';
 import { joinTheGame } from '../commands/jointhegame';
 import { roll } from '../commands/roll';
 import type { Reply } from '../api';
+import { redis } from '../db';
 
 const userId = () => SnowflakeUtil.generate();
 
-// note, this conflicts with ava's parallel tests, since we use the global object...
-test.before('integrate redis', async () => {
-  (global as any).redis = new Redis();
-  await cleanUpTestRedis();
-});
+test.before('integrate redis', cleanUpTestRedis);
 
 if (process.env.CI !== 'true') {
   test.after('clean up redis', async () => {
     await cleanUpTestRedis();
-    const redis: Redis = (global as any).redis;
     await redis.quit();
   });
 }
@@ -24,7 +19,6 @@ if (process.env.CI !== 'true') {
 const TEST_ARENA = 'test';
 
 async function cleanUpTestRedis() {
-  const redis: Redis = (global as any).redis;
   const keys = await redis.keys(`${TEST_ARENA}:*`); // slow method
   await Promise.all(keys.map((key: string) => redis.del(key)));
 }

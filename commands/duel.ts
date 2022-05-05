@@ -1,8 +1,9 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, InteractionReplyOptions, Message, MessageActionRow, MessageButton } from 'discord.js';
-import type { Arena, PlayerId, Redis } from '../api';
+import type { Arena, PlayerId } from '../api';
 import { lookupArena } from '../api';
+import { redis } from '../db';
 import { Sorry, possessive, sleep } from '../utils';
 
 const NEXT_ROUND_DELAY = 4000;
@@ -59,7 +60,6 @@ export async function execute(interaction: CommandInteraction) {
 
 /// Re-render the duel state display from scratch.
 export async function showCurrentDuel(arena: Arena, interaction: CommandInteraction) {
-  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
 
   // DRY
@@ -229,7 +229,6 @@ export async function chooseAction(
   chosenActs: string,
   interaction: ButtonInteraction,
 ) {
-  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
 
   // DRY

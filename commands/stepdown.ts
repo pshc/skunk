@@ -1,7 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { CommandInteraction } from 'discord.js';
-import type { Arena, PlayerId, Redis } from '../api';
+import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
+import { redis } from '../db';
 import { chooseOne } from '../utils';
 import { CHALLENGE_MSG_CACHE, makeChallengeButtons } from './squareup';
 
@@ -17,7 +18,6 @@ export async function execute(interaction: CommandInteraction) {
 
 export async function stepDown(arena: Arena, playerId: PlayerId, interaction: CommandInteraction) {
   // DRY with squareup
-  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
   const name = (await redis.hget(namesKey, playerId)) || '???';
 

@@ -1,8 +1,9 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction, Snowflake } from 'discord.js';
-import type { Arena, PlayerId, Redis, Reply } from '../api';
+import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena } from '../api';
+import { redis } from '../db';
 
 const INITIAL_SCORE = 100;
 
@@ -20,8 +21,6 @@ export async function execute(interaction: CommandInteraction) {
 }
 
 export async function joinTheGame(arena: Arena, userId: Snowflake, playerName: string, reply: Reply): Promise<PlayerId> {
-  const redis: Redis = (global as any).redis;
-
   playerName = sanifyName(playerName);
   assert(!!playerName, "Please provide a valid name.");
 

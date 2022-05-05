@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
-import { Redis, lookupArena } from '../api';
+import { lookupArena } from '../api';
+import { redis } from '../db';
 import { adornName, dayRollKey, loadDoubler } from './roll';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -8,7 +9,6 @@ export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setDescription('Show the xd100 rolling record.');
 
 export async function execute(interaction: CommandInteraction) {
-  const redis: Redis = (global as any).redis;
   const arena = lookupArena(interaction);
 
   const highScore = await redis.get(`${arena}:maiden:high_score`);

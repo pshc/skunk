@@ -10,6 +10,7 @@
     "target": "ES2020"
   },
   "files": [
+    "db.ts",
     "index.ts",
     "test/index.ts"
   ],

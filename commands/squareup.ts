@@ -1,8 +1,9 @@
 import { strict as assert } from 'assert';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, MessageButton } from 'discord.js';
-import type { Arena, PlayerId, Redis } from '../api';
+import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
+import { redis } from '../db';
 import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage, emptySelections } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
@@ -26,7 +27,6 @@ let PENDING_FIGHT: ReturnType<typeof setTimeout> | undefined;
 type EitherInteraction = CommandInteraction | ButtonInteraction;
 
 export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId: number | 'next', interaction: EitherInteraction) {
-  const redis: Redis = (global as any).redis;
   const namesKey = `${arena}:names`;
   const mentionsKey = `${arena}:mentions`;
   const name: string = (await redis.hget(namesKey, playerId)) || '???';
@@ -126,7 +126,6 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
 }
 
 async function startFight(arena: Arena, duelId: number, defender: Duelist, challenger: Duelist, interaction: EitherInteraction) {
-  const redis: Redis = (global as any).redis;
   // DRY
   const duelCountKey = `${arena}:duel:count`;
   const activeKey = `${arena}:duel:active`;
