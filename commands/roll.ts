@@ -340,10 +340,15 @@ function seasonalToken(): string {
     if (day <= 21) return '🦋';
     return '🦆';
   } else if (month == 6) {
-    if (day <= 15) return '🌊';
-    return '🏝️';
+    if (day <= 7) return '🌊';
+    if (day <= 14) return '🏄';
+    if (day <= 21) return '🏝️';
+    return '🪸';
   } else if (month == 7) {
     if (day == 1) return '🍁';
+    if (day <= 7) return '🐚';
+    if (day <= 14) return '🦐';
+    if (day <= 21) return '🦩';
     return '🌻';
   } else if (month == 8) {
     return '🦗';
