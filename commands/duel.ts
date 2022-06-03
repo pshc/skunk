@@ -100,9 +100,21 @@ export async function showCurrentDuel(arena: Arena, interaction: CommandInteract
   const challenger = await fetchDuelist(challengerKey);
 
   const msg = duelMessage(arena, duelId, round, defender, challenger, 'picking');
-  // typescript why?
-  const reply = <any>await interaction.reply({ fetchReply: true, ...msg });
-  cacheDuelMessage(reply, arena, duelId, round);
+
+  // typescript is being stubborn about the two `.reply` overloads so break it up into two steps
+  const replyPromise = interaction.reply({ fetchReply: true, ...msg });
+  const reply = await replyPromise;
+
+  if (reply instanceof Message) {
+    cacheDuelMessage(reply, arena, duelId, round);
+  } else {
+    console.warn("didn't get Message back");
+  }
+}
+
+interface DuelMessage {
+  components: MessageActionRow[],
+  content: string,
 }
 
 /// Generates current duel round and status in discord data structures.
@@ -113,7 +125,7 @@ export function duelMessage(
   defender: Duelist,
   challenger: Duelist,
   state: 'picking' | 'resolved' | 'end',
-): InteractionReplyOptions {
+): DuelMessage {
 
   const components = [
     new MessageActionRow()
@@ -394,8 +406,12 @@ ${challenger.name} \`[${chaHp} HP]\`
     await cachedMessage.edit(msg);
   } else if (interaction.channel) {
     // gotta make a new one
-    cachedMessage = await interaction.channel.send({ fetchReply: true, ...msg });
-    cacheDuelMessage(cachedMessage, arena, duelId, round);
+    cachedMessage = await interaction.channel.send(msg);
+    if (cachedMessage) {
+      cacheDuelMessage(cachedMessage, arena, duelId, round);
+    } else {
+      console.warn("interaction.channel.send didn't give back cached message");
+    }
   }
 
   // acknowledge button press
@@ -439,14 +455,14 @@ ${challenger.name} \`[${chaHp} HP]\`
     const msg = duelMessage(arena, duelId, round + 1, defender, challenger, 'picking');
     let reply;
     if (interaction.channel) {
-      reply = await interaction.channel.send({ fetchReply: true, ...msg });
+      reply = await interaction.channel.send(msg);
     } else {
       reply = await interaction.followUp({ fetchReply: true, ...msg});
     }
     if (reply instanceof Message) {
       cacheDuelMessage(reply, arena, duelId, round + 1);
     } else {
-      console.warn("didn't get message back");
+      console.warn("chooseAction: didn't get message back");
     }
   }
 }
