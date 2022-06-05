@@ -15,6 +15,7 @@ const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 function bot() {
   if (!DISCORD_BOT_TOKEN)
     throw new Error('DISCORD_BOT_TOKEN missing from .env!');
+  console.log('Sending login token.');
   client.login(DISCORD_BOT_TOKEN);
 }
 
@@ -28,7 +29,7 @@ for (const file of commandFiles) {
   commands.set(command.data.name, command);
 }
 
-client.on('ready', () => {
+client.once('ready', () => {
   console.log(`Logged in as ${client.user?.tag}!`);
 });
 
