@@ -32,3 +32,9 @@ jobs:
       run: |
         pnpm install
         pnpm run test
+
+    - name: Typecheck webapp
+      run: |
+        cd web
+        pnpm install
+        pnpm run typecheck
