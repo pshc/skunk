@@ -25,4 +25,5 @@ const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_BOT_TOKEN);
   } catch (error) {
     console.error(error);
   }
+  process.exit(0);
 })();
