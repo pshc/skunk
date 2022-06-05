@@ -1,6 +1,10 @@
 *.swp
 .env
-package-lock.json
 node_modules
 dist
 *.csv
+
+# ignore lock files for now
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
