@@ -4,6 +4,7 @@ import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, Messa
 import type { Arena, PlayerId } from '../api';
 import { lookupArena } from '../api';
 import { redis } from '../db';
+import type { Result } from 'ioredis';
 import { Sorry, possessive, sleep } from '../utils';
 
 const NEXT_ROUND_DELAY = 4000;
@@ -232,6 +233,29 @@ function parseActs(str: string, duelist?: Duelist): (Act | '.')[] {
   return parsed;
 }
 
+redis.defineCommand('releaseLock', {
+  numberOfKeys: 1,
+  lua: `
+    local did_unlock = ARGV[1] == redis.call("get", KEYS[1])
+    if (did_unlock)
+    then
+      redis.call("del", KEYS[1])
+    end
+    return did_unlock
+`
+})
+
+declare module "ioredis" {
+  interface RedisCommander<Context> {
+    /// Deletes `lockKey` only if it has the expected value
+    releaseLock(
+      lockKey: string,
+      expectedValue: string,
+    ): Result<number, Context>;
+  }
+}
+
+
 /// Handles duel button callbacks.
 export async function chooseAction(
   arena: Arena,
@@ -250,26 +274,25 @@ export async function chooseAction(
   const challengerKey = `${arena}:duel:challenger`;
 
   // acquire lock before accessing state (in case the other player acts at the same time)
+  // expire the lock in case we crash
   const roundLock = `${arena}:duel:round:${round}:lock`;
-  if (!await redis.setnx(roundLock, playerId)) {
+  if (!await redis.set(roundLock, playerId, 'PX', 500, 'NX')) {
     // try one more time
-    await sleep(100);
-    if (!await redis.setnx(roundLock, playerId)) {
+    await sleep(200);
+    if (!await redis.set(roundLock, playerId, 'PX', 500, 'NX')) {
       await interaction.reply({ content: 'Locking bug, please try again.', ephemeral: true });
       return;
     }
   }
-  // this is not watertight; if we crash here, we deadlock.
-  // later: use a proper lua lock, or maybe WATCH?
-  // for now: just hold the lock for a second
-  await redis.expire(roundLock, 1);
 
   const lockState = {taken: true};
   const releaseLock = async () => {
-    // this is also race condition-y...
-    if (lockState.taken && await redis.get(roundLock) === playerId) {
-      lockState.taken = false;
-      await redis.del(roundLock);
+    if (lockState.taken) {
+      if (await redis.releaseLock(roundLock, playerId)) {
+        lockState.taken = false;
+      } else {
+        console.warn(`couldn't release ${roundLock} properly`);
+      }
     }
   };
 
