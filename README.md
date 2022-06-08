@@ -14,8 +14,8 @@
 ## Development
 
 ```
-npm install
-npm run start
+pnpm install
+pnpm start
 ```
 
 ### Hall of Fame

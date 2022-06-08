@@ -1,7 +1,8 @@
 {
-  "name": "skunk",
+  "name": "skunk-discord-bot",
   "version": "1.0.1",
   "description": "Discord game bot",
+  "private": true,
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",

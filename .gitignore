@@ -3,6 +3,7 @@
 node_modules
 dist
 *.csv
+.*-debug.log
 
 # ignore lock files for now
 package-lock.json
