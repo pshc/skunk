@@ -1,0 +1,9 @@
+{
+  "name": "skunk",
+  "version": "1.0.1",
+  "description": "an idle game",
+  "private": true,
+  "author": "uweng",
+  "license": "ISC",
+  "workspaces": ["./packages/*"]
+}
