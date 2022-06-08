@@ -28,13 +28,15 @@ jobs:
       with:
         redis-version: 6
 
-    - name: Install deps and test
+    - name: Install deps
+      run: pnpm install
+
+    - name: Test discord bot
       run: |
-        pnpm install
-        pnpm run test
+        cd packages/discord-bot
+        pnpm test
 
     - name: Typecheck webapp
       run: |
-        cd web
-        pnpm install
+        cd packages/web
         pnpm run typecheck
