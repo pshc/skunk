@@ -11,3 +11,15 @@
   justify-content: center;
   align-items: center;
 }
+
+.elua {
+  font-size: 20vmin;
+  color: #222;
+}
+
+.moloch {
+  color: #666;
+  font-size: max(2vw, 8pt);
+  line-height: 150%;
+  padding: 100vh 10vw;
+}

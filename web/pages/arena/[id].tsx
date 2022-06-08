@@ -7,8 +7,8 @@ const Arena: NextPage<Props> = (props) => {
   return (
     <div className={styles.container}>
       <Head>
-        <title>arena</title>
-        <meta name="description" content="skunk arena stats" />
+        <title>arena | elua.xyz</title>
+        <meta name="description" content="idle game arena stats" />
       </Head>
 
       <main className={styles.main}>
