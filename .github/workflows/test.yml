@@ -32,11 +32,9 @@ jobs:
       run: pnpm install
 
     - name: Test discord bot
-      run: |
-        cd packages/discord-bot
-        pnpm test
+      working-directory: ./packages/discord-bot
+      run: pnpm test
 
     - name: Typecheck webapp
-      run: |
-        cd packages/web
-        pnpm run typecheck
+      working-directory: ./packages/web
+      run: pnpm test
