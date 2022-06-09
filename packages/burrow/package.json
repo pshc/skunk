@@ -1,0 +1,23 @@
+{
+  "name": "burrow",
+  "version": "1.0.1",
+  "private": true,
+  "description": "shared datastore",
+  "license": "ISC",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "16",
+    "ioredis": "5"
+  },
+  "devDependencies": {
+    "typescript": "4"
+  },
+  "exports": {
+    "./db": "./dist/db.js",
+    "./dice": "./dist/dice.js",
+    "./utils": "./dist/utils.js"
+  }
+}

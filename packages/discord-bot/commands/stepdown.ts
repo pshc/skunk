@@ -2,8 +2,8 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { CommandInteraction } from 'discord.js';
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
-import { redis } from '../db';
-import { chooseOne } from '../utils';
+import { redis } from 'burrow/db';
+import { chooseOne } from 'burrow/utils';
 import { CHALLENGE_MSG_CACHE, makeChallengeButtons } from './squareup';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()

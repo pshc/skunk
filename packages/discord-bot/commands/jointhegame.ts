@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction, Snowflake } from 'discord.js';
 import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena } from '../api';
-import { redis } from '../db';
+import { redis } from 'burrow/db';
 
 const INITIAL_SCORE = 100;
 

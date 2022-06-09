@@ -3,9 +3,9 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, MessageButton } from 'discord.js';
 import type { Arena, PlayerId } from '../api';
 import { lookupArena } from '../api';
-import { redis } from '../db';
+import { redis } from 'burrow/db';
 import type { Result } from 'ioredis';
-import { Sorry, possessive, sleep } from '../utils';
+import { Sorry, possessive, sleep } from 'burrow/utils';
 
 const NEXT_ROUND_DELAY = 4000;
 const MAX_CHARGE = 3;
@@ -314,7 +314,7 @@ export async function chooseAction(
       }
       return;
     }
-  
+
     // check that this player is actually in the battle
     if (playerId === await redis.get(defenderKey)) {
       player = 'defender';

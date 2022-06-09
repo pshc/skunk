@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { ButtonInteraction, CommandInteraction, Message, MessageActionRow, MessageButton } from 'discord.js';
 import type { Arena, PlayerId } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
-import { redis } from '../db';
+import { redis } from 'burrow/db';
 import { STARTING_HP, Duelist, duelMessage, cacheDuelMessage, emptySelections } from './duel';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()

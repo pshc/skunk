@@ -5,7 +5,7 @@ import { ButtonInteraction } from 'discord.js';
 import { squareUp } from './commands/squareup';
 import { chooseAction, showRules } from './commands/duel';
 import { lookupPlayerId } from './api';
-import { Sorry } from './utils';
+import { Sorry } from 'burrow/utils';
 
 export async function handleButton(interaction: ButtonInteraction) {
   try {

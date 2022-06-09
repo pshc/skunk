@@ -16,6 +16,7 @@
   "dependencies": {
     "@discordjs/builders": "0.13",
     "@discordjs/rest": "0.4",
+    "burrow": "workspace:*",
     "discord-api-types": "0.33",
     "discord.js": "13",
     "dotenv": "16",

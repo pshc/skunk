@@ -3,7 +3,7 @@ import { SnowflakeUtil } from 'discord.js';
 import { joinTheGame } from '../commands/jointhegame';
 import { roll } from '../commands/roll';
 import type { Reply } from '../api';
-import { redis } from '../db';
+import { redis } from 'burrow/db';
 
 const userId = () => SnowflakeUtil.generate();
 

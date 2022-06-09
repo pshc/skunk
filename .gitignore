@@ -4,6 +4,7 @@ node_modules
 dist
 *.csv
 .*-debug.log
+*.tsbuildinfo
 
 # ignore lock files for now
 package-lock.json

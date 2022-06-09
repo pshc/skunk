@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena } from '../api';
-import { redis } from '../db';
-import { adornName, dayRollKey, loadDoubler } from './roll';
+import { redis } from 'burrow/db';
+import { adornName, dayRollKey, loadDoubler } from 'burrow/dice';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('highscore')
