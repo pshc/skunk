@@ -1,6 +1,6 @@
 import type { SlashCommandBuilder } from "@discordjs/builders";
 import type { CommandInteraction, Interaction, InteractionReplyOptions, MessagePayload } from 'discord.js';
-import { redis } from 'burrow/db';
+import { redis } from '#burrow/db';
 
 export interface Command {
   data: SlashCommandBuilder,

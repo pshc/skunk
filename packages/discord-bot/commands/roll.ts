@@ -5,10 +5,9 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import type { Arena, PlayerId, Reply } from '../api';
 import { lookupArena, lookupPlayerId } from '../api';
-import { redis } from 'burrow/db';
-import { adornName, dailyTrendMarker, increaseDoublerStreak, loadDoubler, multiply, saveNewDoubler } from 'burrow/dice';
-import { Sorry, chooseOne } from 'burrow/utils';
-import { dayRollKey } from 'burrow/dice';
+import { redis } from '#burrow/db';
+import { adornName, dailyTrendMarker, dayRollKey, increaseDoublerStreak, loadDoubler, multiply, saveNewDoubler } from '#burrow/dice';
+import { Sorry, chooseOne } from '#burrow/utils';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
   .setName('roll')

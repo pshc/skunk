@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import type { CommandInteraction } from 'discord.js';
 import { lookupArena } from '../api';
-import { redis } from 'burrow/db';
+import { redis } from '#burrow/db';
 
 export const data: SlashCommandBuilder = new SlashCommandBuilder()
     .setName('leavethegame')

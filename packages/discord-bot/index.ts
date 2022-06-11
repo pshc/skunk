@@ -2,7 +2,7 @@ import { readdirSync } from 'fs';
 import { Client, Collection, CommandInteraction, Intents } from 'discord.js';
 import type { Command } from './api';
 import { handleButton } from './buttons';
-import { Sorry } from 'burrow/utils';
+import { Sorry } from '#burrow/utils';
 
 require('dotenv').config();
 const {

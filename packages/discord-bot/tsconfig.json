@@ -7,7 +7,11 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "strict": true,
-    "target": "ES2020"
+    "target": "ES2020",
+    "baseUrl": "..",
+    "paths": {
+      "#burrow/*": ["burrow/*"]
+    }
   },
   "files": [
     "index.ts",
@@ -19,5 +23,8 @@
   "exclude": [
     "node_modules",
     "**/*.spec.ts"
+  ],
+  "references": [
+    {"path": "../burrow"}
   ]
 }
