@@ -11,7 +11,6 @@
     "composite": true
   },
   "files": [
-    "index.ts",
     "db.ts",
     "dice.ts",
     "utils.ts"
