@@ -38,3 +38,9 @@ jobs:
     - name: Typecheck webapp
       working-directory: ./packages/web
       run: pnpm test
+
+    - name: Build webapp
+      working-directory: ./packages/web
+      run: pnpm build
+      env:
+        NEXT_TELEMETRY_DISABLED: 1
