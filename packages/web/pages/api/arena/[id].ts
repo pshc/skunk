@@ -1,6 +1,9 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiHandler } from 'next'
 
+import { redis } from '#burrow/db'
+import { dayRollKey } from '#burrow/dice'
+
 type Data = {
   content: string
 }
@@ -17,5 +20,11 @@ const handler: NextApiHandler<Data> = async (req, res) => {
 export default handler
 
 export async function arenaStats(id: string) {
-  return { content: `(pull stats from arena #${id})` }
+  const arena = `arena:${id}`
+
+  const yesterday = dayRollKey(arena, 'yesterday')
+  const champ = await redis.get(`${yesterday}:name`) || '<nobody>'
+  const brick = await redis.get(`${yesterday}:low_name`) || '<nobody>'
+
+  return { content: `champ: ${champ}, brick: ${brick}` }
 }
