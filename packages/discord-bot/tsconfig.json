@@ -14,15 +14,16 @@
     }
   },
   "files": [
-    "index.ts",
-    "test/index.ts"
+    "api.ts",
+    "buttons.ts",
+    "index.ts"
   ],
   "include": [
     "commands/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "**/*.spec.ts"
+    "test/**/*.ts"
   ],
   "references": [
     {"path": "../burrow"}

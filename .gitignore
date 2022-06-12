@@ -2,6 +2,7 @@
 .env
 node_modules
 dist
+.test
 *.csv
 .*-debug.log
 *.tsbuildinfo

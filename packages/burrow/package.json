@@ -15,9 +15,10 @@
   "devDependencies": {
     "typescript": "4"
   },
+  "engines": {
+    "node": ">=16"
+  },
   "exports": {
-    "./db": "./dist/db.js",
-    "./dice": "./dist/dice.js",
-    "./utils": "./dist/utils.js"
+    "./*": "./dist/*.js"
   }
 }

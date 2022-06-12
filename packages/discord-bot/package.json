@@ -5,11 +5,11 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "tsc && ava dist/test/index.js",
-    "start": "tsc && node deploy-commands && node dist/index.js",
+    "typecheck": "tsc --build --noEmit",
+    "test": "tsc --build && tsc -p test.tsconfig.json && ava .test/discord-bot/test/index.js",
+    "start": "tsc --build && node deploy-commands && node dist/index.js",
     "clean": "rm -f -- rolls_test*.csv",
-    "distclean": "rm -rf -- dist"
+    "distclean": "rm -rf -- dist .test"
   },
   "author": "uweng",
   "license": "ISC",
@@ -29,6 +29,9 @@
     "ava": "4",
     "eslint": "8",
     "typescript": "4"
+  },
+  "engines": {
+    "node": ">=16"
   },
   "prettier": {
     "singleQuote": true,

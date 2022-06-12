@@ -5,5 +5,14 @@
   "private": true,
   "author": "uweng",
   "license": "ISC",
-  "workspaces": ["./packages/*"]
+  "workspaces": ["./packages/*"],
+  "scripts": {
+    "build": "tsc --build packages/burrow packages/discord-bot"
+  },
+  "devDependencies": {
+    "typescript": "4"
+  },
+  "engines": {
+    "node": ">=16"
+  }
 }
