@@ -8,8 +8,8 @@
     "typecheck": "tsc --build --noEmit",
     "test": "tsc --build && tsc -p test.tsconfig.json && ava .test/discord-bot/test/index.js",
     "start": "tsc --build && node deploy-commands && node dist/index.js",
-    "clean": "rm -f -- rolls_test*.csv",
-    "distclean": "rm -rf -- dist .test"
+    "clean": "rm -rf -- .test",
+    "distclean": "rm -rf -- dist"
   },
   "author": "uweng",
   "license": "ISC",

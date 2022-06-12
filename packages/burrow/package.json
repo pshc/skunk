@@ -6,7 +6,8 @@
   "license": "ISC",
   "scripts": {
     "build": "tsc --build",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit",
+    "distclean": "rm -rf -- dist"
   },
   "dependencies": {
     "dotenv": "16",

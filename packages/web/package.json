@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit",
+    "clean": "rm -f -- public/rolls/test_*.csv"
   },
   "dependencies": {
     "burrow": "workspace:*",
