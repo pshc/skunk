@@ -174,7 +174,7 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
     })(),
     (async () => {
       // record the roll
-      const rollsDir = joinPath('..', 'web', 'public', 'rolls');
+      const rollsDir = joinPath('..', '..', 'rolls');
       const csv = joinPath(rollsDir, `${arena}_${diceCount}d100.csv`);
       const now = new Date().toISOString();
       await fsAsync.appendFile(csv, `${rolls.join(',')},${now},${name}\n`);

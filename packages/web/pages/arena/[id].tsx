@@ -36,7 +36,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({ query }) =
   // (alternatively, we could hit `api/arena/2` client-side)
   const { content } = await arenaStats(id)
 
-  const csv = `../rolls/arena:${id}_2d100.csv`
+  const csv = `/api/arena/${id}/2d100.csv`
   const props: Props = { id, content, csv }
   return { props }
 }
