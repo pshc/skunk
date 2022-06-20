@@ -5,21 +5,26 @@ import type { Arena, PlayerId } from '../api';
 import { lookupArena } from '../api';
 import { redis } from '#burrow/db';
 import type { Result } from 'ioredis';
-import { Sorry, possessive, sleep } from '#burrow/utils';
+import { Sorry, sleep } from '#burrow/utils';
 
 const NEXT_ROUND_DELAY = 4000;
-const MAX_CHARGE = 3;
+const MAX_CHARGE = 10;
 const TURNS_PER_ROUND = 2;
+const MIN_NAME_WIDTH = 6;
 
 // damage tiers
 const LOW = 2;
-const MID = 4;
-const HIGH = 10;
+const MID = 5;
+const SPECIAL_MULTIPLIER = 5;
+const COUNTER = 10;
 
-export const STARTING_HP = 25;
+export const STARTING_HP = 35;
 
-type Act = 'A' | 'D' | 'S' | 'W';
-const ACT_DOT_STR = 'ADSW.';
+const SINGLE_CHARGE = 2;
+const HALF_CHARGE = 1;
+
+type Act = 'A' | 'D' | 'C' | 'S';
+const ACT_DOT_STR = 'ADCS.';
 
 export interface Duelist {
   id: PlayerId,
@@ -40,12 +45,14 @@ interface ActionButton {
 }
 
 export async function showRules(interaction: ButtonInteraction) {
-  const content = `>>> Choose ${TURNS_PER_ROUND} actions per round
-Start with \`${STARTING_HP} HP\`
+  const content = `>>> Start with \`${STARTING_HP} HP\`, choose ${TURNS_PER_ROUND} actions per round
+
 🗡️ deals \`${MID}\`, or \`${LOW}\` when blocked 🛡️
-🔥 increases windup to max of ${MAX_CHARGE}, use it ☄️ or lose it
-☄️ deals \`${HIGH} × windup\` if not blocked
-🛡️ parries ☄️ and counters for \`${HIGH}\`
+🛡️ parries ☄️, countering for \`${COUNTER}\`
+🔋 increases charge by \`+${SINGLE_CHARGE}\` ⚡
+☄️ consumes all ⚡ and deals \`${SPECIAL_MULTIPLIER}×\` ⚡ if not 🛡️ed
+
+Charge depletes \`-${SINGLE_CHARGE}\` when 🗡️ing, \`-${HALF_CHARGE}\` when 🛡️ing
 `;
   interaction.reply({ content, ephemeral: true });
 }
@@ -139,9 +146,11 @@ export function duelMessage(
       )
   ];
 
+  const w = Math.min(MIN_NAME_WIDTH, Math.max(defender.name.length, challenger.name.length));
+  const padLeft = (n: number) => n.toString().padStart(2);
   const content = `>>> __Round ${round}__
-\`${defender.name}${'🔥'.repeat(defender.charge)} [${defender.hp} HP]\` ${checkmark(defender.hasChosen)}
-\`${challenger.name}${'🔥'.repeat(challenger.charge)} [${challenger.hp} HP]\` ${checkmark(challenger.hasChosen)}
+\`${defender.name.padEnd(w)} [${padLeft(defender.hp)} HP, ${padLeft(defender.charge)} ⚡]\` ${checkmark(defender.hasChosen)}
+\`${challenger.name.padEnd(w)} [${padLeft(challenger.hp)} HP, ${padLeft(challenger.charge)} ⚡]\` ${checkmark(challenger.hasChosen)}
 `;
 
   return { content, components };
@@ -175,20 +184,29 @@ function actionPalette(arena: Arena, duelId: number, round: number, duelist: Due
     const actions: ActionButton[] = [
       {id: 'A', emoji: '🗡️'},
       {id: 'D', emoji: '🛡️'},
-      {id: 'W', emoji: '🔥'},
+      {id: 'C', emoji: '🔋'},
       {id: 'S', emoji: '☄️', enabled: charge > 0},
     ];
     const row = new MessageActionRow().addComponents(... actions.map(buttonize));
     components.push(row);
 
     // simulate to determine which buttons are enabled in the next row
-    if (picked === 'W') {
-      charge = Math.min(charge + 1, MAX_CHARGE);
-    } else {
-      charge = 0;
-    }
-    if (picked === '.') {
-      reachedThisTurn = false;
+    switch (picked) {
+      case 'A':
+        charge = decay(charge);
+        break;
+      case 'D':
+        charge = halfDecay(charge);
+        break;
+      case 'C':
+        charge = chargeUp(charge);
+        break;
+      case 'S':
+        charge = 0;
+        break;
+      case '.':
+        reachedThisTurn = false;
+        break;
     }
     roundPrefix += picked;
   }
@@ -214,13 +232,20 @@ function parseActs(str: string, duelist?: Duelist): (Act | '.')[] {
     // validate game logic if a duelist was provided
     if (duelist) {
       // DRY-ish with above
-      if (c === 'W') {
-        charge = Math.min(charge + 1, MAX_CHARGE);
-      } else if (c === 'S') {
-        assert(charge > 0, 'no charge for special');
-        charge = 0;
-      } else {
-        charge = 0;
+      switch (c) {
+        case 'A':
+          charge = decay(charge);
+          break;
+        case 'D':
+          charge = halfDecay(charge);
+          break;
+        case 'C':
+          charge = chargeUp(charge);
+          break;
+        case 'S':
+          assert(charge > 0, 'no charge for special');
+          charge = 0;
+          break;
       }
     }
     // ensure turns are picked in order
@@ -528,98 +553,118 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
         [a, b] = [b, a];
       }
       const moves = `${a.acts[i]} - ${b.acts[i]}`;
-      const specialA = HIGH * a.charge;
-      const specialB = HIGH * b.charge;
+      const specialA = SPECIAL_MULTIPLIER * a.charge;
+      const specialB = SPECIAL_MULTIPLIER * b.charge;
+      // try to line up the names and symbols
+      const nameWidth = Math.max(MIN_NAME_WIDTH, Math.max(a.name.length, b.name.length));
+      const whoA = `\`${a.name.padEnd(nameWidth)}\``;
+      const whoB = `\`${b.name.padEnd(nameWidth)}\``;
+      a.dmg = 0;
+      b.dmg = 0;
       switch (moves) {
         case 'A - A':
-          story.push(`${a.name} and ${b.name} attack simultaneously. \`both -${MID} HP\``);
-          a.dmg += MID;
-          b.dmg += MID;
-          a.charge = 0;
-          b.charge = 0;
+          story.push(`${whoA} 🗡️ vs 🗡️ ${whoB}`);
+          a.dmg = MID;
+          b.dmg = MID;
+          a.charge = decay(a.charge);
+          b.charge = decay(b.charge);
           break;
         case 'D - D':
-          story.push(`${a.name} and ${b.name} both block.`);
-          a.charge = 0;
-          b.charge = 0;
+          story.push(`${whoA} 🛡️ vs 🛡️ ${whoB}`);
+          a.charge = halfDecay(a.charge);
+          b.charge = halfDecay(b.charge);
           break;
         case 'A - D':
-          story.push(`${a.name} hits ${possessive(b.name)} shield. \`${b.name} -${LOW} HP\``);
-          b.dmg += LOW;
-          a.charge = 0;
+          story.push(`${whoA} 🗡️ vs 🛡️ ${whoB}`);
+          b.dmg = LOW;
+          a.charge = decay(a.charge);
+          b.charge = halfDecay(b.charge);
+          break;
+        case 'A - C':
+          story.push(`${whoA} 🗡️ vs 🔋 ${whoB}`);
+          b.dmg = MID;
+          a.charge = decay(a.charge);
+          b.charge = chargeUp(b.charge);
+          break;
+        case 'C - D':
+          story.push(`${whoA} 🔋 vs 🛡️ ${whoB}`);
+          a.charge = chargeUp(a.charge);
+          b.charge = halfDecay(b.charge);
+          break;
+        case 'C - S':
+          story.push(`${whoA} 🔋 vs ☄️ ${whoB}`);
+          a.dmg = specialB;
+          a.charge = chargeUp(a.charge);
           b.charge = 0;
           break;
-        case 'A - W':
-          story.push(`${a.name} hits ${b.name} while they wind up. \`${b.name} -${MID} HP\``);
-          b.dmg += MID;
-          a.charge = 0;
-          b.charge++;
-          break;
-        case 'D - W':
-          story.push(`${a.name} holds up their shield while ${b.name} winds up.`);
-          a.charge = 0;
-          b.charge++;
-          break;
-        case 'S - W':
-          story.push(`while ${b.name} is winding up,`);
-          story.push(`${a.name} performs ${a.charge}x special! \`${b.name} -${specialA} HP\``);
-          b.dmg += specialA;
-          a.charge = 0;
-          b.charge++;
-          break;
-        case 'W - W':
-          story.push(`${a.name} and ${b.name} are winding up.`);
-          a.charge++;
-          b.charge++;
+        case 'C - C':
+          story.push(`${whoA} 🔋 vs 🔋 ${whoB}`);
+          a.charge = chargeUp(a.charge);
+          b.charge = chargeUp(b.charge);
           break;
         case 'A - S':
-          story.push(`${a.name} hits ${b.name} \`-${MID} HP\``);
-          story.push(`while ${b.name} counters with ${b.charge}x special attack! \`${a.name} -${specialB} HP\``);
-          a.dmg += specialB;
-          b.dmg += MID;
-          a.charge = 0;
+          story.push(`${whoA} 🗡️ vs ☄️ ${whoB}`);
+          a.dmg = specialB;
+          b.dmg = MID;
+          a.charge = decay(a.charge);
           b.charge = 0;
           break;
         case 'D - S':
-          story.push(`${b.name} attempts their special,`);
-          story.push(`but ${a.name} parries and counter-attacks! \`${b.name} -${HIGH} HP\``);
-          // skip multiplier on counter attack (for now?)
-          b.dmg += HIGH;
-          a.charge = 0;
+          story.push(`${whoA} 🛡️ vs ☄️ ${whoB}`);
+          b.dmg = COUNTER;
+          a.charge = halfDecay(b.charge);
           b.charge = 0;
           break;
         case 'S - S':
-          story.push(`${a.name} performs ${a.charge}x special, \`${b.name} -${specialA} HP\``);
-          story.push(`while ${b.name} hits back with ${b.charge}x special! \`${a.name} -${specialB} HP\``);
-          a.dmg += specialB;
-          b.dmg += specialA;
+          story.push(`${whoA} ☄️ vs ☄️ ${whoB}`);
+          a.dmg = specialB;
+          b.dmg = specialA;
           a.charge = 0;
           b.charge = 0;
           break;
         default:
           console.error(`conflict: what is '${moves}'?`);
-          story.push(`Something unexpected happened, causing psychic damage. \`both -${LOW} HP\``);
-          a.dmg += LOW;
-          b.dmg += LOW;
-          a.charge = 0;
-          b.charge = 0;
+          story.push(`${whoA} 🐛?! ${whoB}`);
+          a.dmg = LOW;
+          b.dmg = LOW;
+          a.charge = decay(a.charge);
+          b.charge = decay(b.charge);
       }
-      // clamp charges
-      a.charge = Math.max(0, Math.min(a.charge, MAX_CHARGE));
-      b.charge = Math.max(0, Math.min(b.charge, MAX_CHARGE));
+
+      if (a.dmg > 0 || b.dmg > 0) {
+        // aligned damage numbers in next line
+        let dmg = '`';
+        if (a.dmg > 0) {
+          const aDmg = `-${a.dmg} HP`;
+          dmg += `${aDmg.padEnd(nameWidth)}`;
+        } else {
+          dmg += ' '.repeat(nameWidth);
+        }
+        dmg += ' '.repeat(9); // middle spacer, width of 'emoji vs emoji'
+        if (b.dmg > 0) {
+          const bDmg = `-${b.dmg} HP`;
+          dmg += `${bDmg.padEnd(nameWidth)}`;
+        } else {
+          dmg += ' '.repeat(nameWidth);
+        }
+        dmg += '`';
+        story.push(dmg);
+      } else if (i < TURNS_PER_ROUND - 1) {
+        // no damage dealt
+        story.push('`...`');
+      }
+
       // now swap back if necessary
       if (swapped) {
         [a, b] = [b, a];
       }
 
-      damage.defender = a.dmg;
-      damage.challenger = b.dmg;
+      damage.defender += a.dmg;
+      damage.challenger += b.dmg;
       // anyone go to 0 HP?
       if (!defenderAlive() || !challengerAlive()) {
         state = 'end';
         break;
-      } else if (i < TURNS_PER_ROUND - 1) {
-        story.push('... and ...');
       }
     }
   } else {
@@ -635,6 +680,11 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
     state,
   };
 }
+
+// clamped charge math
+const chargeUp = (charge: number) => Math.min(charge + SINGLE_CHARGE, MAX_CHARGE);
+const decay = (charge: number) => Math.max(charge - SINGLE_CHARGE, 0);
+const halfDecay = (charge: number) => Math.max(charge - HALF_CHARGE, 0);
 
 // simple cache for the latest `Message` for each round of fighting,
 // at least until I figure out where to look up discord messages...
