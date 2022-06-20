@@ -146,7 +146,7 @@ export function duelMessage(
       )
   ];
 
-  const w = Math.min(MIN_NAME_WIDTH, Math.max(defender.name.length, challenger.name.length));
+  const w = Math.max(MIN_NAME_WIDTH, Math.max(defender.name.length, challenger.name.length));
   const padLeft = (n: number) => n.toString().padStart(2);
   const content = `>>> __Round ${round}__
 \`${defender.name.padEnd(w)} [${padLeft(defender.hp)} HP, ${padLeft(defender.charge)} ⚡]\` ${checkmark(defender.hasChosen)}
