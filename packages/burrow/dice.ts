@@ -49,8 +49,8 @@ export const adornName = (params: AdornParams) => {
 };
 
 export function multiply(str: string, n: number): string {
-  if (n === 69) return `${str} x69 (nice)`;
-  return n < 20 ? str.repeat(n) : `${str} x${n}`;
+  if (n === 69) return `${str} ×69 (nice)`;
+  return n < 20 ? str.repeat(n) : `${str} ×${n}`;
 }
 
 const DOUBLES = ['🍒', '✌️', '🫁', '👯', '🤼', '🫂', '🎎', '🙌', '🖇️', '⚔️', '🛠️', '⛓️', '🛍️', '🚻', '👣', '🧦', '🩰', '⚖️', '🧬', '🎵', '♊', '🪺'];
