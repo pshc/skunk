@@ -146,12 +146,16 @@ export function duelMessage(
       )
   ];
 
-  const w = Math.max(MIN_NAME_WIDTH, Math.max(defender.name.length, challenger.name.length));
-  const padLeft = (n: number) => n.toString().padStart(2);
+  // lay out player states side by side
+  const w = Math.max(MIN_NAME_WIDTH, Math.max(defender.name.length, challenger.name.length) + 2);
+  const pad = (field: string) => field.padEnd(w);
+  const defName = `${defender.name} ${checkmark(defender.hasChosen)}`;
+  const chaName = `${challenger.name} ${checkmark(challenger.hasChosen)}`;
   const content = `>>> __Round ${round}__
-\`${defender.name.padEnd(w)} [${padLeft(defender.hp)} HP, ${padLeft(defender.charge)} ⚡]\` ${checkmark(defender.hasChosen)}
-\`${challenger.name.padEnd(w)} [${padLeft(challenger.hp)} HP, ${padLeft(challenger.charge)} ⚡]\` ${checkmark(challenger.hasChosen)}
-`;
+\`\`\`${pad(defName)} | ${pad(chaName)}
+${pad(`${defender.hp} HP`)} | ${pad(`${challenger.hp} HP`)}
+${pad(`${defender.charge} SP`)} | ${pad(`${challenger.charge} SP`)}
+\`\`\``;
 
   return { content, components };
 }
@@ -413,9 +417,14 @@ export async function chooseAction(
           // store result for printing momentarily
           const defHp = Number(await redis.get(`${defenderKey}:hp`));
           const chaHp = Number(await redis.get(`${challengerKey}:hp`));
-          let final = `${defender.name} \`[${defHp} HP]\`
-${challenger.name} \`[${chaHp} HP]\`
 
+          const w = Math.max(MIN_NAME_WIDTH, Math.max(defender.name.length, challenger.name.length));
+          const pad = (field: string) => field.padEnd(w);
+
+          let final = `\`\`\`
+${pad(defender.name)} | ${pad(challenger.name)}
+${pad(`${defHp} HP`)} | ${pad(`${chaHp} HP`)}
+\`\`\`
 `;
           if (defHp <= 0 && chaHp <= 0) {
             final += '**Draw.**';
@@ -700,5 +709,5 @@ function expireDuelMessage(key: string, messageId: string) {
 }
 
 function checkmark(checked: boolean | undefined): string {
-  return checked ? '✅' : (checked === false ? '…' : '');
+  return checked ? '✓' : (checked === false ? '…' : '');
 }
