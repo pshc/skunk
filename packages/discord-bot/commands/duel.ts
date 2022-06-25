@@ -529,16 +529,14 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
   const defenderAlive = () => (defender.hp - damage.defender) > 0;
   const challengerAlive = () => (challenger.hp - damage.challenger) > 0;
 
-  // we'll use these temporary states while processing both fight steps
+  // we'll use these temporary states while processing the turns for this round
   let a = {
     name: defender.name,
-    dmg: 0,
     charge: defender.charge,
     acts: defender.acts,
   };
   let b = {
     name: challenger.name,
-    dmg: 0,
     charge: challenger.charge,
     acts: challenger.acts,
   };
@@ -547,102 +545,88 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
   if (defenderAlive() && challengerAlive()) {
     // break down the moves
     for (let i = 0; i < TURNS_PER_ROUND; i++) {
-      // to reduce case analysis, swap actions to be alphabetical
-      const swapped = a.acts[i] > b.acts[i];
-      if (swapped) {
-        [a, b] = [b, a];
-      }
-      const moves = `${a.acts[i]} - ${b.acts[i]}`;
       const specialA = SPECIAL_MULTIPLIER * a.charge;
       const specialB = SPECIAL_MULTIPLIER * b.charge;
       // try to line up the names and symbols
       const nameWidth = Math.max(MIN_NAME_WIDTH, Math.max(a.name.length, b.name.length));
       const whoA = `\`${a.name.padEnd(nameWidth)}\``;
       const whoB = `\`${b.name.padEnd(nameWidth)}\``;
-      a.dmg = 0;
-      b.dmg = 0;
-      switch (moves) {
-        case 'A - A':
-          story.push(`${whoA} 🗡️ vs 🗡️ ${whoB}`);
-          a.dmg = MID;
-          b.dmg = MID;
-          a.charge = decay(a.charge);
-          b.charge = decay(b.charge);
-          break;
-        case 'D - D':
-          story.push(`${whoA} 🛡️ vs 🛡️ ${whoB}`);
-          a.charge = halfDecay(a.charge);
-          b.charge = halfDecay(b.charge);
-          break;
-        case 'A - D':
-          story.push(`${whoA} 🗡️ vs 🛡️ ${whoB}`);
-          b.dmg = LOW;
-          a.charge = decay(a.charge);
-          b.charge = halfDecay(b.charge);
-          break;
-        case 'A - C':
-          story.push(`${whoA} 🗡️ vs 🔋 ${whoB}`);
-          b.dmg = MID;
-          a.charge = decay(a.charge);
-          b.charge = chargeUp(b.charge);
-          break;
-        case 'C - D':
-          story.push(`${whoA} 🔋 vs 🛡️ ${whoB}`);
-          a.charge = chargeUp(a.charge);
-          b.charge = halfDecay(b.charge);
-          break;
-        case 'C - S':
-          story.push(`${whoA} 🔋 vs ☄️ ${whoB}`);
-          a.dmg = specialB;
-          a.charge = chargeUp(a.charge);
-          b.charge = 0;
-          break;
-        case 'C - C':
-          story.push(`${whoA} 🔋 vs 🔋 ${whoB}`);
-          a.charge = chargeUp(a.charge);
-          b.charge = chargeUp(b.charge);
-          break;
-        case 'A - S':
-          story.push(`${whoA} 🗡️ vs ☄️ ${whoB}`);
-          a.dmg = specialB;
-          b.dmg = MID;
-          a.charge = decay(a.charge);
-          b.charge = 0;
-          break;
-        case 'D - S':
-          story.push(`${whoA} 🛡️ vs ☄️ ${whoB}`);
-          b.dmg = COUNTER;
-          a.charge = halfDecay(b.charge);
-          b.charge = 0;
-          break;
-        case 'S - S':
-          story.push(`${whoA} ☄️ vs ☄️ ${whoB}`);
-          a.dmg = specialB;
-          b.dmg = specialA;
-          a.charge = 0;
-          b.charge = 0;
-          break;
-        default:
-          console.error(`conflict: what is '${moves}'?`);
-          story.push(`${whoA} 🐛?! ${whoB}`);
-          a.dmg = LOW;
-          b.dmg = LOW;
-          a.charge = decay(a.charge);
-          b.charge = decay(b.charge);
+      const moveA = a.acts[i];
+      const moveB = b.acts[i];
+
+      if (moveA !== '.' && moveB !== '.') {
+        // display the moves taken this turn
+        story.push(`${whoA} ${actEmoji(moveA)} vs ${actEmoji(moveB)} ${whoB}`);
+      } else {
+        // bugged?
+        story.push(`${whoA} 🐛?! ${whoB}`);
+        a.charge = decay(a.charge);
+        b.charge = decay(b.charge);
+        damage.defender += LOW;
+        damage.challenger += LOW;
+        if (!defenderAlive() || !challengerAlive()) {
+          state = 'end';
+        }
+        break;
       }
 
-      if (a.dmg > 0 || b.dmg > 0) {
+      // resolve damage for both fighers
+      let dmgA = 0;
+      let dmgB = 0;
+      switch (moveA) {
+        case 'A':
+          dmgB += moveB !== 'D' ? MID : LOW;
+          a.charge = decay(a.charge);
+          break;
+        case 'D':
+          a.charge = halfDecay(a.charge);
+          break;
+        case 'C':
+          a.charge = chargeUp(a.charge);
+          break;
+        case 'S':
+          if (moveB === 'D') {
+            dmgA += COUNTER;
+          } else {
+            dmgB += specialA;
+          }
+          a.charge = 0;
+          break;
+      }
+      // could be nice to DRY this, if readability is not impacted
+      switch (moveB) {
+        case 'A':
+          dmgA += moveA !== 'D' ? MID : LOW;
+          b.charge = decay(b.charge);
+          break;
+        case 'D':
+          b.charge = halfDecay(b.charge);
+          break;
+        case 'C':
+          b.charge = chargeUp(b.charge);
+          break;
+        case 'S':
+          if (moveA === 'D') {
+            dmgB += COUNTER;
+          } else {
+            dmgA += specialB;
+          }
+          b.charge = 0;
+          break;
+      }
+
+      if (dmgA > 0 || dmgB > 0) {
         // aligned damage numbers in next line
         let dmg = '`';
-        if (a.dmg > 0) {
-          const aDmg = `-${a.dmg} HP`;
+        if (dmgA > 0) {
+          const aDmg = `-${dmgA} HP`;
           dmg += `${aDmg.padEnd(nameWidth)}`;
         } else {
           dmg += ' '.repeat(nameWidth);
         }
         dmg += ' '.repeat(9); // middle spacer, width of 'emoji vs emoji'
-        if (b.dmg > 0) {
-          const bDmg = `-${b.dmg} HP`;
+        if (dmgB > 0) {
+          const bDmg = `-${dmgB} HP`;
           dmg += `${bDmg.padEnd(nameWidth)}`;
         } else {
           dmg += ' '.repeat(nameWidth);
@@ -654,13 +638,9 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
         story.push('`...`');
       }
 
-      // now swap back if necessary
-      if (swapped) {
-        [a, b] = [b, a];
-      }
-
-      damage.defender += a.dmg;
-      damage.challenger += b.dmg;
+      // apply damage
+      damage.defender += dmgA;
+      damage.challenger += dmgB;
       // anyone go to 0 HP?
       if (!defenderAlive() || !challengerAlive()) {
         state = 'end';
@@ -679,6 +659,15 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
     story,
     state,
   };
+}
+
+const actEmoji = (act: Act) => {
+  switch (act) {
+    case 'A': return '🗡️';
+    case 'D': return '🛡️';
+    case 'C': return '🔋';
+    case 'S': return '☄️';
+  }
 }
 
 // clamped charge math

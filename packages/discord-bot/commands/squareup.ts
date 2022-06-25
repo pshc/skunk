@@ -82,7 +82,7 @@ export async function squareUp(arena: Arena, playerId: PlayerId, requestedDuelId
       await interaction.reply({ content: 'You are already up for a duel.', ephemeral: true });
     } else if (await redis.setnx(challengerKey, playerId)) {
       // challenge accepted!
-      const content = `${challengerMention} VS ${defenderMention}`;
+      const content = `${defenderMention} VS ${challengerMention}`;
       const components = makeChallengeButtons(arena, nextDuel, 'fighting');
 
       // update the existing challenge message
