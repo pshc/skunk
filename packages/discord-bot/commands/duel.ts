@@ -8,20 +8,19 @@ import type { Result } from 'ioredis';
 import { Sorry, sleep } from '#burrow/utils';
 
 const NEXT_ROUND_DELAY = 4000;
-const MAX_CHARGE = 10;
 const TURNS_PER_ROUND = 2;
 const MIN_NAME_WIDTH = 6;
 
 // damage tiers
 const LOW = 2;
 const MID = 5;
-const SPECIAL_MULTIPLIER = 5;
 const COUNTER = 10;
 
 export const STARTING_HP = 35;
 
-const SINGLE_CHARGE = 2;
-const HALF_CHARGE = 1;
+const SINGLE_CHARGE = 10;
+const HALF_CHARGE = 5;
+const MAX_CHARGE = 100;
 
 type Act = 'A' | 'D' | 'C' | 'S';
 const ACT_DOT_STR = 'ADCS.';
@@ -50,7 +49,7 @@ export async function showRules(interaction: ButtonInteraction) {
 🗡️ deals \`${MID}\`, or \`${LOW}\` when blocked 🛡️
 🛡️ parries ☄️, countering for \`${COUNTER}\`
 🔋 increases charge by \`+${SINGLE_CHARGE}\` ⚡
-☄️ consumes all ⚡ and deals \`${SPECIAL_MULTIPLIER}×\` ⚡ if not 🛡️ed
+☄️ consumes all ⚡ and deals that much damage if not 🛡️ed
 
 Charge depletes \`-${SINGLE_CHARGE}\` when 🗡️ing, \`-${HALF_CHARGE}\` when 🛡️ing
 `;
@@ -554,8 +553,6 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
   if (defenderAlive() && challengerAlive()) {
     // break down the moves
     for (let i = 0; i < TURNS_PER_ROUND; i++) {
-      const specialA = SPECIAL_MULTIPLIER * a.charge;
-      const specialB = SPECIAL_MULTIPLIER * b.charge;
       // try to line up the names and symbols
       const nameWidth = Math.max(MIN_NAME_WIDTH, Math.max(a.name.length, b.name.length));
       const whoA = `\`${a.name.padEnd(nameWidth)}\``;
@@ -597,7 +594,7 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
           if (moveB === 'D') {
             dmgA += COUNTER;
           } else {
-            dmgB += specialA;
+            dmgB += a.charge;
           }
           a.charge = 0;
           break;
@@ -618,7 +615,7 @@ function conflict(defender: Duelist, challenger: Duelist): Outcome {
           if (moveA === 'D') {
             dmgB += COUNTER;
           } else {
-            dmgA += specialB;
+            dmgA += b.charge;
           }
           b.charge = 0;
           break;
