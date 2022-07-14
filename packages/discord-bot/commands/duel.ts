@@ -8,7 +8,7 @@ import type { Result } from 'ioredis';
 import { Sorry, sleep } from '#burrow/utils';
 
 const NEXT_ROUND_DELAY = 4000;
-const TURNS_PER_ROUND = 2;
+const TURNS_PER_ROUND = 3;
 const MIN_NAME_WIDTH = 6;
 
 // damage tiers
@@ -16,7 +16,7 @@ const LOW = 2;
 const MID = 5;
 const COUNTER = 10;
 
-export const STARTING_HP = 35;
+export const STARTING_HP = 50;
 
 const SINGLE_CHARGE = 10;
 const HALF_CHARGE = 5;
