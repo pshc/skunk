@@ -1,7 +1,7 @@
 import test from 'ava'
 import { SnowflakeUtil } from 'discord.js';
 import { joinTheGame } from '../commands/jointhegame';
-import { roll } from '../commands/roll';
+import { roll, spirit } from '../commands/roll';
 import type { Reply } from '../api';
 import { redis } from '#burrow/db';
 
@@ -64,4 +64,42 @@ test('can roll 1d100 max roll', async (t) => {
   let three = await roll(arena, a, reply);
   t.assert(three.length === 3, "trying to roll 3d100");
   */
+});
+
+test('can cheer for combos', async (t) => {
+  t.is(spirit([1]), '');
+  t.is(spirit([2, 3]), '');
+  t.assert(spirit([4, 4]).includes('DOUBLES'));
+  t.assert(spirit([6, 1, 6]).includes('DOUBLES'));
+  t.assert(spirit([99, 3, 6, 99]).includes('DOUBLES'));
+  t.assert(spirit([5, 5, 5]).includes('TRIPLES'));
+  t.assert(spirit([5, 5, 2, 5]).includes('TRIPLES'));
+  // the funny number is awkward to test due to randomized responses... mock random?
+  t.assert(spirit([2, 69]).includes('('));
+  t.assert(spirit([69, 99]).includes('('));
+  t.assert(spirit([10, 59]).includes('('));
+  t.assert(spirit([3, 4, 69]).includes('('));
+  t.assert(spirit([3, 7, 59]).includes('('));
+  t.assert(spirit([1, 1]).includes('OOF'));
+  t.assert(spirit([1, 1, 1]).includes('OOF'));
+  t.assert(spirit([1, 1, 1, 1]).includes('OOF'));
+  t.assert(spirit([1, 100]).includes('KARMA'));
+  t.assert(spirit([100, 1]).includes('KARMA'));
+  t.assert(spirit([100, 1, 100]).includes('KARMA'));
+  t.assert(spirit([100, 100, 1]).includes('KARMA'));
+  t.assert(spirit([100, 100, 100, 1]).includes('KARMA'));
+  t.assert(spirit([2, 100]).includes('100'));
+  t.assert(spirit([1, 2, 100]).includes('100'));
+  t.assert(spirit([3, 100, 50, 4]).includes('100'));
+  t.assert(spirit([1, 2]).includes('('));
+  t.assert(spirit([1, 3, 5]).includes('('));
+  t.assert(spirit([1, 8, 12, 98]).includes('('));
+  t.assert(spirit([1, 110]).includes('🌠'));
+  t.assert(spirit([1, 10, 100]).includes('🌠'));
+  const tooNice = ['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)'];
+  t.assert(tooNice.includes(spirit([69, 69])));
+  t.assert(tooNice.includes(spirit([69, 69, 1])));
+  t.assert(tooNice.includes(spirit([69, 2, 69])));
+  t.assert(tooNice.includes(spirit([69, 69, 100])));
+  t.assert(tooNice.includes(spirit([69, 4, 69, 8])));
 });

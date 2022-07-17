@@ -91,11 +91,11 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
     sum += roll;
   }
 
-  // only handle 2d100 doubles for now
-  if (!isMaxRoll && diceCount === 2 && rolls[0] === rolls[1]) {
+  if (!isMaxRoll && hasDuplicates(rolls, 2)) {
     if (name !== doubler.name) {
       doubler = await saveNewDoubler(arena, name);
     } else {
+      // todo: bonus on triples?
       await increaseDoublerStreak(arena, doubler);
     }
   }
@@ -149,11 +149,11 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
     await reply(`${adorn(name)} MAX ROLL: \`${rolls}\` Result: ${sum}`);
     await redis.del(prevKey);
   } else {
-    const spirit = diceCount === 2 ? ' ' + twoSpirit(rolls[0], rolls[1], sum) : '';
+    const cheer = spirit(rolls);
     const trend = dailyTrendMarker(dailyTrend);
     const speed = speedRolling ? ` ${multiply(process.env.FAST_EMOJI || '💨', speedRolling)}` : '';
 
-    await reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${spirit}${trend}${speed}`);
+    await reply(`${adorn(name)} Roll: \`${rolls}\` Result: ${sum}${cheer ? ' ' + cheer : ''}${trend}${speed}`);
     // don't let them re-roll consecutively
     await redis.set(prevKey, playerId);
   }
@@ -184,15 +184,25 @@ export async function roll(arena: Arena, playerId: PlayerId, reply: Reply): Prom
   return rolls;
 }
 
-function twoSpirit(a: number, b: number, sum: number): string {
+// Adds extra flavour to the roll result based on dice numbers.
+// note: this is not used upon max roll
+export function spirit(rolls: number[]): string {
+  const n = rolls.length;
+  const sum = rolls.reduce((a, b) => a + b);
   switch (true) {
-    case a === 69 && b === 69:
-      return chooseOne(['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)']);
-    case sum === 2:
+    case n < 2:
+      return '';
+    case sum === n:
       return '(BIG OOOF)';
-    case a === b:
+    case rolls.filter(a => a === 1 || a === 100).length === n:
+      return 'HOW IS THIS EVEN POSSIBLE, WHY DO YOU HAVE THIS KARMA?!';
+    case n > 2 && hasDuplicates(rolls, 3):
+      return 'TRIPLES!!! :beers: :beers: :beers:';
+    case rolls.filter(a => a === 69).length === 2:
+      return chooseOne(['ʕ◉ᴥ◉ʔ', '(so nice they rolled it twice!)']);
+    case hasDuplicates(rolls, 2):
       return 'DOUBLES! :beers:';
-    case a === 69 || b === 69 || sum === 69:
+    case rolls.includes(69) || sum === 69:
       return chooseOne([
         '( ͝° ͜ʖ͡°)',
         '(nice)',
@@ -203,11 +213,9 @@ function twoSpirit(a: number, b: number, sum: number): string {
       ]);
     case sum === 111:
       return '🌠';
-    case (a === 1 && b === 100) || (a === 100 && b === 1):
-      return 'HOW IS THIS EVEN POSSIBLE, WHY DO YOU HAVE THIS KARMA?!';
-    case a === 100 || b === 100:
+    case rolls.includes(100):
       return '(another :100: wasted)';
-    case a === 1 || b === 1:
+    case rolls.includes(1):
       return chooseOne([
         '(oof)',
         '(you make me sad)',
@@ -218,4 +226,16 @@ function twoSpirit(a: number, b: number, sum: number): string {
     default:
       return '';
   }
+}
+
+function hasDuplicates(rolls: number[], target: number): boolean {
+  const freqMap = new Map<number, number>();
+  for (const roll of rolls) {
+    const n = (freqMap.get(roll) || 0) + 1;
+    if (n >= target) {
+      return true;
+    }
+    freqMap.set(roll, n);
+  }
+  return false;
 }
