@@ -23,7 +23,7 @@ async function cleanUpTestRedis() {
   await Promise.all(keys.map((key: string) => redis.del(key)));
 }
 
-test('can roll max rolls', async (t) => {
+test('can roll 1d100 max roll', async (t) => {
   const arena = TEST_ARENA;
   const reply: Reply = async (msg) => console.log(msg);
   const a = await joinTheGame(arena, userId(), 'Anna', reply);
@@ -41,7 +41,11 @@ test('can roll max rolls', async (t) => {
     }
   }
   t.assert(maxRoll, 'never rolled 100');
+  // quick check if we can roll 2d100
+  let two = await roll(arena, a, reply);
+  t.is(two.length, 2, "trying to roll a 2d100");
   // roll quite a bit more...
+  /*
   maxRoll = false;
   for (let i = 0; i < 100000; i++) {
     let [a1, a2] = await roll(arena, a, reply);
@@ -59,4 +63,5 @@ test('can roll max rolls', async (t) => {
   // see if we can roll 3d100
   let three = await roll(arena, a, reply);
   t.assert(three.length === 3, "trying to roll 3d100");
+  */
 });
