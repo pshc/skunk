@@ -135,7 +135,23 @@ function seasonalToken(): string {
     if (day <= 21) return '🦩';
     return '🌻';
   } else if (month == 8) {
-    return '🦗';
+    if (day <= 7) return '🦗';
+    if (day <= 14) return '🦀';
+    if (day <= 21) return '🦎';
+    return '🦥';
+  }
+  else if (month == 9) {
+    if (day <= 7) return '🦫';
+    if (day <= 14) return '🦢';
+    if (day <= 21) return '🐢';
+    return '🐖';
+  }
+  else if (month == 10) {
+    if (day <= 7) return '🦉';
+    if (day <= 14) return '🐺';
+    if (day <= 21) return '🦇';
+    if (day <= 30) return '🎃';
+    return '👻';
   }
   // TBD...
   if (month == 12 && day > 25) {
