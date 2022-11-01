@@ -14,7 +14,7 @@ const Arena: NextPage<Props> = (props) => {
       <main className={styles.main}>
         <h1>Arena stats</h1>
         <p>{props.content}</p>
-        <a href={props.csv}>2d100.csv</a>
+        <a href={props.csv}>3d100.csv</a>
       </main>
     </div>
   )
@@ -36,7 +36,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({ query }) =
   // (alternatively, we could hit `api/arena/2` client-side)
   const { content } = await arenaStats(id)
 
-  const csv = `/api/arena/${id}/2d100.csv`
+  const csv = `/api/arena/${id}/3d100.csv`
   const props: Props = { id, content, csv }
   return { props }
 }
